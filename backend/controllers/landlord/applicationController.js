@@ -1,0 +1,135 @@
+// tenant_manage/backend/controllers/landlord/applicationController.js
+
+const Application = require('../../models/Application');
+const Property = require('../../models/Property');
+const User = require('../../models/User');
+const Lease = require('../../models/Lease');
+const LogEntry = require('../../models/LogEntry');
+
+/**
+ * @desc    Tenant submits a new application for a property
+ * @route   POST /api/applications
+ * @access  Private (Tenant Only)
+ */
+const createApplication = async (req, res) => {
+    try {
+        const { propertyId, message, requestedStartDate, requestedEndDate } = req.body;
+        const tenantId = req.user.id;
+
+        const property = await Property.findById(propertyId).populate('organization');
+        if (!property) {
+            return res.status(404).json({ message: 'Property not found' });
+        }
+
+        const existingApplication = await Application.findOne({ property: propertyId, tenant: tenantId });
+        if (existingApplication) {
+            return res.status(409).json({ message: 'You have already applied for this property.' });
+        }
+
+        const application = await Application.create({
+            property: propertyId,
+            tenant: tenantId,
+            landlord: property.organization.owner,
+            organization: property.organization._id,
+            message,
+            requestedStartDate,
+            requestedEndDate,
+        });
+
+        await LogEntry.create({
+            organization: property.organization._id,
+            actor: req.user.name,
+            type: 'System',
+            message: `Submitted application for ${property.address.street}`,
+            tenant: tenantId,
+            property: propertyId,
+        });
+
+        res.status(201).json(application);
+    } catch (error) {
+        console.error("Error creating application:", error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+/**
+ * @desc    Landlord gets all pending applications for their organization
+ * @route   GET /api/applications
+ * @access  Private (Landlord Only)
+ */
+const getApplications = async (req, res) => {
+    try {
+        const applications = await Application.find({ organization: req.user.organization, status: 'Pending' })
+            .populate('tenant', 'name email')
+            .populate('property', 'address');
+            
+        res.status(200).json(applications);
+    } catch (error) {
+        console.error("Error fetching applications:", error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+/**
+ * @desc    Landlord updates an application's status (Approve/Reject)
+ * @route   PUT /api/applications/:id
+ * @access  Private (Landlord Only)
+ */
+const updateApplicationStatus = async (req, res) => {
+    try {
+        const { status } = req.body;
+        const application = await Application.findById(req.params.id).populate('tenant property');
+
+        if (!application || application.organization.toString() !== req.user.organization.toString()) {
+            return res.status(404).json({ message: 'Application not found or not authorized.' });
+        }
+        
+        if (application.status !== 'Pending') {
+            return res.status(400).json({ message: 'This application has already been processed.' });
+        }
+
+        if (status === 'Approved') {
+            const existingLease = await Lease.findOne({ property: application.property._id, status: 'active' });
+            if (existingLease) {
+                return res.status(409).json({ message: 'This property has already been assigned an active lease.' });
+            }
+
+            await Lease.create({
+                property: application.property._id,
+                tenant: application.tenant._id,
+                organization: application.organization,
+                startDate: application.requestedStartDate || new Date(),
+                endDate: application.requestedEndDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
+                rentAmount: application.property.rentAmount,
+                status: 'active'
+            });
+
+            await User.findByIdAndUpdate(application.tenant._id, {
+                organization: application.organization
+            });
+        }
+        
+        application.status = status;
+        await application.save();
+        
+        await LogEntry.create({
+            organization: req.user.organization,
+            actor: req.user.name,
+            type: 'System',
+            message: `Application for ${application.tenant.name} was ${status.toLowerCase()}`,
+            tenant: application.tenant._id,
+            property: application.property._id,
+        });
+
+        res.status(200).json(application);
+    } catch (error) {
+        console.error("Error updating application status:", error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+module.exports = {
+    createApplication,
+    getApplications,
+    updateApplicationStatus,
+};

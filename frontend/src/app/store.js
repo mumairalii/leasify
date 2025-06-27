@@ -8,7 +8,8 @@ import taskReducer from '../features/tasks/taskSlice';
 import tenantReducer from '../features/tenants/tenantSlice';
 import paymentReducer from '../features/payments/paymentSlice';
 // import invitationReducer from '../features/invitations/invitationSlice';
-import logReducer from '../features/logs/logSlice';
+// import logReducer from '../features/logs/logSlice';
+import logReducer from '@/features/logs/logSlice';
 import applicationReducer from '../features/applications/applicationSlice';
 // import tenantReducer from '../features/tenants/tenantSlice'; // 1. Import new reducer
 

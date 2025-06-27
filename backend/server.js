@@ -218,7 +218,7 @@ app.post('/api/stripe-webhook', express.raw({type: 'application/json'}), handleS
 const allowedOrigins = [
   'http://localhost:5173', // Your Vite dev server
   // Add your deployed frontend URL here once you have it
-  'https://leaseify.netlify.app/'
+  'https://leaseify.netlify.app'
 ];
 
 const corsOptions = {

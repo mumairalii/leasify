@@ -13,7 +13,7 @@ import RegisterPage from './pages/RegisterPage';
 import LoginPage from './pages/LoginPage';
 import LandlordDashboard from './pages/LandLordDashboard';
 import TenantDashboard from './pages/TenantDashboard';
-import LandlordMaintenancePage from './pages/LandlordMaintenancePage';
+import LandLordMaintenancePage from './pages/LandLordMaintenancePage';
 import TenantMaintenancePage from './pages/TenantMaintenancePage';
 import PropertyDetailPage from './pages/PropertyDetailPage';
 import HomePage from './pages/HomePage'; // Assuming you have this from our previous step

@@ -40,7 +40,7 @@ function App() {
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               {/* Landlord Routes */}
               <Route path="/landlord/dashboard" element={<LandlordDashboard />} />
-              <Route path="/landlord/maintenance" element={<LandlordMaintenancePage />} />
+              <Route path="/landlord/maintenance" element={<LandLordMaintenancePage />} />
                <Route path="/landlord/applications" element={<LandlordApplicationsPage />} /> {/* 2. Add the new route here */}
               
               {/* Tenant Routes */}

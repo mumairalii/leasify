@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
 
-function LandlordMaintenancePage() {
+function LandLordMaintenancePage() {
     const dispatch = useDispatch();
     const { requests, isLoading, isError, isSuccess, message } = useSelector((state) => state.maintenance);
 
@@ -138,7 +138,7 @@ function LandlordMaintenancePage() {
     );
 }
 
-export default LandlordMaintenancePage;
+export default LandLordMaintenancePage;
 
 // import React, { useEffect } from 'react';
 // import { useSelector, useDispatch } from 'react-redux';

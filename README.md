@@ -1,7 +1,7 @@
 # Leasify - Property Management Simplified
 
 A full-stack property management application designed to streamline the rental lifecycle for both landlords and tenants.
-A full-stack property management application built with the MERN stack (React, Node.js, Express). Features role-based dashboards for landlords &amp; tenants, lease management, and Stripe payment integration.
+Built with the MERN stack (React, Node.js, Express). Features role-based dashboards for landlords &amp; tenants, lease management, and Stripe payment integration.
 
 ---
 

@@ -1,38 +1,33 @@
-import api from '../../services/api';
+import api from '../../services/api.js';
 
 const TENANT_API_URL = 'tenant/maintenance-requests/';
 const LANDLORD_API_URL = 'landlord/maintenance-requests/';
 
 // --- Tenant Actions ---
-const createRequest = async (requestData, token) => {
-    const config = { headers: { Authorization: `Bearer ${token}` } };
-    const response = await api.post(TENANT_API_URL, requestData, config);
+const createRequest = async (requestData) => {
+    const response = await api.post(TENANT_API_URL, requestData);
     return response.data;
 };
 
-const getTenantRequests = async (token) => {
-    const config = { headers: { Authorization: `Bearer ${token}` } };
-    const response = await api.get(TENANT_API_URL, config);
+const getTenantRequests = async () => {
+    const response = await api.get(TENANT_API_URL);
     return response.data;
 };
 
 // --- Landlord Actions ---
-const getLandlordRequests = async (token) => {
-    const config = { headers: { Authorization: `Bearer ${token}` } };
-    const response = await api.get(LANDLORD_API_URL, config);
+const getLandlordRequests = async () => {
+    const response = await api.get(LANDLORD_API_URL);
     return response.data;
 };
 
-const updateRequest = async (requestData, token) => {
-    const config = { headers: { Authorization: `Bearer ${token}` } };
+const updateRequest = async (requestData) => {
     const { id, status } = requestData;
-    const response = await api.put(LANDLORD_API_URL + id, { status }, config);
+    const response = await api.put(LANDLORD_API_URL + id, { status });
     return response.data;
 };
 
-const deleteRequest = async (requestId, token) => {
-    const config = { headers: { Authorization: `Bearer ${token}` } };
-    const response = await api.delete(LANDLORD_API_URL + requestId, config);
+const deleteRequest = async (requestId) => {
+    const response = await api.delete(LANDLORD_API_URL + requestId);
     return response.data;
 };
 
@@ -45,6 +40,54 @@ const maintenanceService = {
 };
 
 export default maintenanceService;
+
+// import api from '../../services/api';
+
+// const TENANT_API_URL = 'tenant/maintenance-requests/';
+// const LANDLORD_API_URL = 'landlord/maintenance-requests/';
+
+// // --- Tenant Actions ---
+// const createRequest = async (requestData, token) => {
+//     const config = { headers: { Authorization: `Bearer ${token}` } };
+//     const response = await api.post(TENANT_API_URL, requestData, config);
+//     return response.data;
+// };
+
+// const getTenantRequests = async (token) => {
+//     const config = { headers: { Authorization: `Bearer ${token}` } };
+//     const response = await api.get(TENANT_API_URL, config);
+//     return response.data;
+// };
+
+// // --- Landlord Actions ---
+// const getLandlordRequests = async (token) => {
+//     const config = { headers: { Authorization: `Bearer ${token}` } };
+//     const response = await api.get(LANDLORD_API_URL, config);
+//     return response.data;
+// };
+
+// const updateRequest = async (requestData, token) => {
+//     const config = { headers: { Authorization: `Bearer ${token}` } };
+//     const { id, status } = requestData;
+//     const response = await api.put(LANDLORD_API_URL + id, { status }, config);
+//     return response.data;
+// };
+
+// const deleteRequest = async (requestId, token) => {
+//     const config = { headers: { Authorization: `Bearer ${token}` } };
+//     const response = await api.delete(LANDLORD_API_URL + requestId, config);
+//     return response.data;
+// };
+
+// const maintenanceService = {
+//     createRequest,
+//     getTenantRequests,
+//     getLandlordRequests,
+//     updateRequest,
+//     deleteRequest,
+// };
+
+// export default maintenanceService;
 // import axios from 'axios';
 
 // const TENANT_API_URL = 'http://localhost:5001/api/tenant/maintenance-requests/';

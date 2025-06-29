@@ -2,31 +2,26 @@ import api from '../../services/api';
 
 const API_URL = 'landlord/properties/';
 
-// Create a property
-const createProperty = async (propertyData, token) => {
-    const config = { headers: { Authorization: `Bearer ${token}` } };
-    const response = await api.post(API_URL, propertyData, config);
+// The 'token' argument is no longer needed
+const getProperties = async ({ page = 1, limit = 9 } = {}) => {
+    // The config object is no longer needed because the interceptor handles the header
+    const response = await api.get(API_URL, { params: { page, limit } });
     return response.data;
 };
 
-// Get all of a landlord's properties
-const getProperties = async (token) => {
-    const config = { headers: { Authorization: `Bearer ${token}` } };
-    const response = await api.get(API_URL, config);
+// All other functions are simplified as well
+const createProperty = async (propertyData) => {
+    const response = await api.post(API_URL, propertyData);
     return response.data;
 };
 
-// Update a property
-const updateProperty = async (propertyData, token) => {
-    const config = { headers: { Authorization: `Bearer ${token}` } };
-    const response = await api.put(API_URL + propertyData._id, propertyData, config);
+const updateProperty = async (propertyData) => {
+    const response = await api.put(API_URL + propertyData._id, propertyData);
     return response.data;
 };
 
-// Delete a property
-const deleteProperty = async (propertyId, token) => {
-    const config = { headers: { Authorization: `Bearer ${token}` } };
-    const response = await api.delete(API_URL + propertyId, config);
+const deleteProperty = async (propertyId) => {
+    const response = await api.delete(API_URL + propertyId);
     return response.data;
 };
 
@@ -38,6 +33,51 @@ const propertyService = {
 };
 
 export default propertyService;
+// import api from '../../services/api';
+
+// const API_URL = 'landlord/properties/';
+
+// // Create a property
+// const createProperty = async (propertyData, token) => {
+//     const config = { headers: { Authorization: `Bearer ${token}` } };
+//     const response = await api.post(API_URL, propertyData, config);
+//     return response.data;
+// };
+
+// // Get all of a landlord's properties
+// // Get all of a landlord's properties (NOW WITH PAGINATION)
+// const getProperties = async (token, { page = 1, limit = 9 } = {}) => {
+//     const config = {
+//         headers: { Authorization: `Bearer ${token}` },
+//         // Axios will automatically convert this to query params: ?page=X&limit=Y
+//         params: { page, limit } 
+//     };
+//     const response = await api.get(API_URL, config);
+//     return response.data;
+// };
+
+// // Update a property
+// const updateProperty = async (propertyData, token) => {
+//     const config = { headers: { Authorization: `Bearer ${token}` } };
+//     const response = await api.put(API_URL + propertyData._id, propertyData, config);
+//     return response.data;
+// };
+
+// // Delete a property
+// const deleteProperty = async (propertyId, token) => {
+//     const config = { headers: { Authorization: `Bearer ${token}` } };
+//     const response = await api.delete(API_URL + propertyId, config);
+//     return response.data;
+// };
+
+// const propertyService = {
+//     createProperty,
+//     getProperties,
+//     updateProperty,
+//     deleteProperty,
+// };
+
+// export default propertyService;
 
 // import axios from 'axios';
 

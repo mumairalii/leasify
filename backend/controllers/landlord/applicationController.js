@@ -75,22 +75,91 @@ const getApplications = async (req, res) => {
  * @route   PUT /api/applications/:id
  * @access  Private (Landlord Only)
  */
+// const updateApplicationStatus = async (req, res) => {
+//     try {
+//         const { status } = req.body;
+//         const application = await Application.findById(req.params.id).populate('tenant property');
+
+//         if (!application || application.organization.toString() !== req.user.organization.toString()) {
+//             return res.status(404).json({ message: 'Application not found or not authorized.' });
+//         }
+        
+//         if (application.status !== 'Pending') {
+//             return res.status(400).json({ message: 'This application has already been processed.' });
+//         }
+
+//         if (status === 'Approved') {
+//             const existingLease = await Lease.findOne({ property: application.property._id, status: 'active' });
+//             if (existingLease) {
+//                 return res.status(409).json({ message: 'This property has already been assigned an active lease.' });
+//             }
+
+//             await Lease.create({
+//                 property: application.property._id,
+//                 tenant: application.tenant._id,
+//                 organization: application.organization,
+//                 startDate: application.requestedStartDate || new Date(),
+//                 endDate: application.requestedEndDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
+//                 rentAmount: application.property.rentAmount,
+//                 status: 'active'
+//             });
+
+//             await User.findByIdAndUpdate(application.tenant._id, {
+//                 organization: application.organization
+//             });
+//         }
+        
+//         application.status = status;
+//         await application.save();
+        
+//         await LogEntry.create({
+//             organization: req.user.organization,
+//             actor: req.user.name,
+//             type: 'System',
+//             message: `Application for ${application.tenant.name} was ${status.toLowerCase()}`,
+//             tenant: application.tenant._id,
+//             property: application.property._id,
+//         });
+
+//         res.status(200).json(application);
+//     } catch (error) {
+//         console.error("Error updating application status:", error);
+//         res.status(500).json({ message: 'Server Error' });
+//     }
+// };
+
+/**
+ * @desc    Landlord updates an application's status (Approve/Reject)
+ * @route   PUT /api/applications/:id
+ * @access  Private (Landlord Only)
+ */
 const updateApplicationStatus = async (req, res) => {
     try {
         const { status } = req.body;
-        const application = await Application.findById(req.params.id).populate('tenant property');
+        const { id } = req.params;
+        const { organization, name: actorName } = req.user;
 
-        if (!application || application.organization.toString() !== req.user.organization.toString()) {
-            return res.status(404).json({ message: 'Application not found or not authorized.' });
-        }
-        
-        if (application.status !== 'Pending') {
-            return res.status(400).json({ message: 'This application has already been processed.' });
+        // --- REFACTOR: Find the application and update its status in ONE atomic operation ---
+        // We use { new: false } to get the document *before* the update, so we can use its data.
+        const application = await Application.findOneAndUpdate(
+            { _id: id, organization: organization, status: 'Pending' }, // Securely find a PENDING application in the landlord's org
+            { status: status }, // The update to apply
+            { new: false } // IMPORTANT: Return the original document
+        ).populate('tenant property');
+
+        // If no application was found, it's either the wrong ID, not pending, or not in their org.
+        if (!application) {
+            return res.status(404).json({ message: 'Pending application not found or you are not authorized.' });
         }
 
+        // --- The rest of the business logic can now proceed safely ---
         if (status === 'Approved') {
             const existingLease = await Lease.findOne({ property: application.property._id, status: 'active' });
             if (existingLease) {
+                // If a lease already exists, we should ideally roll back the status update.
+                // For now, we'll return an error. (See Proactive Suggestions)
+                application.status = 'Pending'; // Revert in memory
+                await application.save(); // Save the revert
                 return res.status(409).json({ message: 'This property has already been assigned an active lease.' });
             }
 
@@ -104,29 +173,33 @@ const updateApplicationStatus = async (req, res) => {
                 status: 'active'
             });
 
+            // Associate the tenant with the landlord's organization
             await User.findByIdAndUpdate(application.tenant._id, {
                 organization: application.organization
             });
         }
         
-        application.status = status;
-        await application.save();
-        
         await LogEntry.create({
-            organization: req.user.organization,
-            actor: req.user.name,
+            organization: organization,
+            actor: actorName,
             type: 'System',
             message: `Application for ${application.tenant.name} was ${status.toLowerCase()}`,
             tenant: application.tenant._id,
             property: application.property._id,
         });
 
-        res.status(200).json(application);
+        // We return the original application object but with the new status, so the frontend can remove it.
+        const finalApplicationState = application.toObject();
+        finalApplicationState.status = status;
+
+        res.status(200).json(finalApplicationState);
+
     } catch (error) {
         console.error("Error updating application status:", error);
         res.status(500).json({ message: 'Server Error' });
     }
 };
+
 
 module.exports = {
     createApplication,

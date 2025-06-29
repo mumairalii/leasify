@@ -1,7 +1,5 @@
-// src/features/tasks/taskSlice.js
-
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import taskService from './taskService';
+import taskService from './taskService.js';
 
 const initialState = {
     tasks: [],
@@ -14,11 +12,12 @@ const getErrorMessage = (error) => {
     return (error.response?.data?.message) || error.message || error.toString();
 };
 
-// --- Async Thunks for each task operation ---
+// --- Async Thunks (Simplified) ---
+// The thunks no longer get the token from the state. They just call the service.
+
 export const getTasks = createAsyncThunk('tasks/getAll', async (_, thunkAPI) => {
     try {
-        const token = thunkAPI.getState().auth.user.token;
-        return await taskService.getTasks(token);
+        return await taskService.getTasks();
     } catch (error) {
         return thunkAPI.rejectWithValue(getErrorMessage(error));
     }
@@ -26,8 +25,7 @@ export const getTasks = createAsyncThunk('tasks/getAll', async (_, thunkAPI) => 
 
 export const createTask = createAsyncThunk('tasks/create', async (taskData, thunkAPI) => {
     try {
-        const token = thunkAPI.getState().auth.user.token;
-        return await taskService.createTask(taskData, token);
+        return await taskService.createTask(taskData);
     } catch (error) {
         return thunkAPI.rejectWithValue(getErrorMessage(error));
     }
@@ -35,8 +33,7 @@ export const createTask = createAsyncThunk('tasks/create', async (taskData, thun
 
 export const updateTask = createAsyncThunk('tasks/update', async (taskData, thunkAPI) => {
     try {
-        const token = thunkAPI.getState().auth.user.token;
-        return await taskService.updateTask(taskData, token);
+        return await taskService.updateTask(taskData);
     } catch (error) {
         return thunkAPI.rejectWithValue(getErrorMessage(error));
     }
@@ -44,8 +41,7 @@ export const updateTask = createAsyncThunk('tasks/update', async (taskData, thun
 
 export const deleteTask = createAsyncThunk('tasks/delete', async (id, thunkAPI) => {
     try {
-        const token = thunkAPI.getState().auth.user.token;
-        return await taskService.deleteTask(id, token);
+        return await taskService.deleteTask(id);
     } catch (error) {
         return thunkAPI.rejectWithValue(getErrorMessage(error));
     }
@@ -65,15 +61,13 @@ export const taskSlice = createSlice({
                 state.tasks = action.payload;
             })
             .addCase(getTasks.rejected, (state, action) => {
-                state.isLoading = false;
-                state.isError = true;
-                state.message = action.payload;
+                state.isLoading = false; state.isError = true; state.message = action.payload;
             })
             .addCase(createTask.fulfilled, (state, action) => {
                 state.tasks.push(action.payload);
             })
             .addCase(updateTask.fulfilled, (state, action) => {
-                state.tasks = state.tasks.map((task) => 
+                state.tasks = state.tasks.map((task) =>
                     task._id === action.payload._id ? action.payload : task
                 );
             })

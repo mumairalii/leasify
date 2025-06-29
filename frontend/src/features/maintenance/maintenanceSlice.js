@@ -1,70 +1,31 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import maintenanceService from './maintenanceService';
+import maintenanceService from './maintenanceService.js';
 
-// A helper function to consistently extract error messages
-const getErrorMessage = (error) => {
-    return (error.response?.data?.message) || error.message || error.toString();
-};
+const getErrorMessage = (error) => (error.response?.data?.message) || error.message || error.toString();
+const initialState = { requests: [], isLoading: false, isSuccess: false, isError: false, message: '' };
 
-const initialState = {
-    requests: [],
-    isLoading: false,
-    isSuccess: false, // It's good practice to track success state as well
-    isError: false,
-    message: '',
-};
-
-// --- Thunks with Full Error Handling ---
-
+// Thunks no longer need to pass the token
 export const createRequest = createAsyncThunk('maintenance/create', async (requestData, thunkAPI) => {
-    try {
-        const token = thunkAPI.getState().auth.user.token;
-        return await maintenanceService.createRequest(requestData, token);
-    } catch (error) {
-        const message = getErrorMessage(error);
-        return thunkAPI.rejectWithValue(message);
-    }
+    try { return await maintenanceService.createRequest(requestData); } 
+    catch (error) { return thunkAPI.rejectWithValue(getErrorMessage(error)); }
 });
-
 export const getTenantRequests = createAsyncThunk('maintenance/getTenantAll', async (_, thunkAPI) => {
-    try {
-        const token = thunkAPI.getState().auth.user.token;
-        return await maintenanceService.getTenantRequests(token);
-    } catch (error) {
-        const message = getErrorMessage(error);
-        return thunkAPI.rejectWithValue(message);
-    }
+    try { return await maintenanceService.getTenantRequests(); }
+    catch (error) { return thunkAPI.rejectWithValue(getErrorMessage(error)); }
 });
-
 export const getLandlordRequests = createAsyncThunk('maintenance/getLandlordAll', async (_, thunkAPI) => {
-    try {
-        const token = thunkAPI.getState().auth.user.token;
-        return await maintenanceService.getLandlordRequests(token);
-    } catch (error) {
-        const message = getErrorMessage(error);
-        return thunkAPI.rejectWithValue(message);
-    }
+    try { return await maintenanceService.getLandlordRequests(); }
+    catch (error) { return thunkAPI.rejectWithValue(getErrorMessage(error)); }
 });
-
 export const updateRequest = createAsyncThunk('maintenance/update', async (requestData, thunkAPI) => {
-    try {
-        const token = thunkAPI.getState().auth.user.token;
-        return await maintenanceService.updateRequest(requestData, token);
-    } catch (error) {
-        const message = getErrorMessage(error);
-        return thunkAPI.rejectWithValue(message);
-    }
+    try { return await maintenanceService.updateRequest(requestData); }
+    catch (error) { return thunkAPI.rejectWithValue(getErrorMessage(error)); }
+});
+export const deleteRequest = createAsyncThunk('maintenance/delete', async (id, thunkAPI) => {
+    try { return await maintenanceService.deleteRequest(id); }
+    catch (error) { return thunkAPI.rejectWithValue(getErrorMessage(error)); }
 });
 
-export const deleteRequest = createAsyncThunk('maintenance/delete', async (id, thunkAPI) => {
-    try {
-        const token = thunkAPI.getState().auth.user.token;
-        return await maintenanceService.deleteRequest(id, token);
-    } catch (error) {
-        const message = getErrorMessage(error);
-        return thunkAPI.rejectWithValue(message);
-    }
-});
 
 
 export const maintenanceSlice = createSlice({

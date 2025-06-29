@@ -1,143 +1,111 @@
 const Property = require('../../models/Property');
-
-// @desc    Create a new property
-// @route   POST /api/landlord/properties
-// @access  Private (Landlord Only)
-
-const Lease = require('../../models/Lease'); // Import the Lease model to check for active leases
+const Lease = require('../../models/Lease');
 const LogEntry = require('../../models/LogEntry');
-// @desc    Get all properties for the landlord, including their rental status
-// @route   GET /api/landlord/properties
-// @access  Private (Landlord Only)
-// const getProperties = async (req, res) => {
-//     try {
-//         const organizationId = req.user.organization;
 
-//         // 1. Get all of the landlord's properties
-//         const properties = await Property.find({ organization: organizationId }).lean();
-        
-//         // 2. Find all property IDs that are linked to an active lease
-//         const leasedPropertyIds = await Lease.find({
-//             organization: organizationId,
-//             status: 'active'
-//         }).distinct('property');
-
-//         // 3. Use a Set for an efficient lookup
-//         const leasedIdsSet = new Set(leasedPropertyIds.map(id => id.toString()));
-
-//         // 4. Add a 'status' field to each property object before sending it
-//         const propertiesWithStatus = properties.map(property => ({
-//             ...property,
-//             status: leasedIdsSet.has(property._id.toString()) ? 'Rented' : 'Vacant'
-//         }));
-
-//         res.status(200).json(propertiesWithStatus);
-//     } catch (error) {
-//         res.status(500).json({ message: 'Failed to retrieve properties', error: error.message });
-//     }
-// };
-
+/**
+ * @desc    Get all properties for the landlord with pagination
+ * @route   GET /api/landlord/properties?page=1&limit=9
+ * @access  Private (Landlord Only)
+ */
 const getProperties = async (req, res) => {
     try {
         const organizationId = req.user.organization;
 
-        const properties = await Property.find({ organization: organizationId }).lean();
-        const propertyIds = properties.map(p => p._id);
+        // 1. Get pagination parameters from the request query string, with sensible defaults.
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 9; // Default to 9 for a 3x3 grid on the frontend
+        const skip = (page - 1) * limit; // Calculate how many documents to skip
+
+        // 2. Run queries in parallel: one for the page's data, one for the total count.
+        const [properties, totalProperties] = await Promise.all([
+            Property.find({ organization: organizationId })
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Property.countDocuments({ organization: organizationId })
+        ]);
         
-        const activeLeases = await Lease.find({ 
-            property: { $in: propertyIds }, 
-            status: 'active' 
-        }).select('property status');
+        // 3. The logic to determine status now runs only on the small, paginated set of data.
+        const propertyIds = properties.map(p => p._id);
+        let propertiesWithStatus = properties; // Initialize with the fetched properties
 
-        // Create a map of PropertyID -> LeaseID for quick lookup
-        const leaseMap = new Map();
-        activeLeases.forEach(lease => {
-            leaseMap.set(lease.property.toString(), lease._id.toString());
-        });
+        if (propertyIds.length > 0) {
+            const activeLeases = await Lease.find({ 
+                property: { $in: propertyIds }, 
+                status: 'active' 
+            }).select('property');
 
-        const propertiesWithStatus = properties.map(property => {
-            const propertyIdStr = property._id.toString();
-            const hasActiveLease = leaseMap.has(propertyIdStr);
-            return {
+            const leasedIdsSet = new Set(activeLeases.map(l => l.property.toString()));
+
+            propertiesWithStatus = properties.map(property => ({
                 ...property,
-                status: hasActiveLease ? 'Rented' : 'Vacant',
-                // --- NEW: Include the active lease ID if it exists ---
-                activeLeaseId: hasActiveLease ? leaseMap.get(propertyIdStr) : null,
-            };
+                status: leasedIdsSet.has(property._id.toString()) ? 'Rented' : 'Vacant'
+            }));
+        }
+
+        // 4. Return a structured response object with the data and pagination metadata.
+        res.status(200).json({
+            properties: propertiesWithStatus,
+            page: page,
+            totalPages: Math.ceil(totalProperties / limit),
+            totalProperties: totalProperties
         });
 
-        res.status(200).json(propertiesWithStatus);
     } catch (error) {
+        console.error("Error fetching properties:", error);
         res.status(500).json({ message: 'Failed to retrieve properties', error: error.message });
     }
 };
+
+/* --- NO CHANGES NEEDED FOR THE FUNCTIONS BELOW --- */
+/* They are included here so you can replace the whole file. */
+
+// @desc    Create a new property
 const createProperty = async (req, res) => {
     try {
-        const { address, rentAmount, isListed } = req.body;
-        const organizationId = req.user.organization;
-
-        if (!address || !rentAmount) {
-            return res.status(400).json({ message: 'Please provide all required fields' });
-        }
-
+        const { address, rentAmount, isListed, imageUrl } = req.body;
         const newProperty = await Property.create({
             address,
             rentAmount,
             isListed: isListed || false,
-            organization: organizationId,
+            imageUrl: imageUrl || '',
+            organization: req.user.organization,
         });
+
         await LogEntry.create({
-        organization: req.user.organization,
-        actor: req.user.name,
-        type: 'System',
-        message: `Created new property: ${newProperty.address.street}`,
-        property: newProperty._id,
-    });
+            organization: req.user.organization,
+            actor: req.user.name,
+            type: 'System',
+            message: `Created new property: ${newProperty.address.street}`,
+            property: newProperty._id,
+        });
         res.status(201).json(newProperty);
     } catch (error) {
         res.status(500).json({ message: 'Server Error', error: error.message });
     }
 };
 
-// @desc    Get all properties for the logged-in landlord
-// @route   GET /api/landlord/properties
-// @access  Private (Landlord Only)
-// const getProperties = async (req, res) => {
-//     try {
-//         // This query securely finds properties matching only the logged-in landlord's organization
-//         const properties = await Property.find({ organization: req.user.organization });
-//         res.status(200).json(properties);
-//     } catch (error) {
-//         res.status(500).json({ message: 'Failed to retrieve properties', error: error.message });
-//     }
-// };
-
 // @desc    Update a property
-// @route   PUT /api/landlord/properties/:id
-// @access  Private (Landlord Only)
 const updateProperty = async (req, res) => {
     try {
-        const property = await Property.findById(req.params.id);
+        const updatedProperty = await Property.findOneAndUpdate(
+            { _id: req.params.id, organization: req.user.organization },
+            req.body,
+            { new: true }
+        );
 
-        if (!property) {
-            return res.status(404).json({ message: 'Property not found' });
+        if (!updatedProperty) {
+            return res.status(404).json({ message: 'Property not found or not authorized' });
         }
-
-        // Security Check: Ensure the landlord owns this property
-        if (property.organization.toString() !== req.user.organization.toString()) {
-            return res.status(403).json({ message: 'User not authorized to update this property' });
-        }
-
-        const updatedProperty = await Property.findByIdAndUpdate(req.params.id, req.body, { new: true });
-         // --- ADD THIS LOGIC ---
-    await LogEntry.create({
-        organization: req.user.organization,
-        actor: req.user.name,
-        type: 'System',
-        message: `Updated details for property: ${updatedProperty.address.street}`,
-        property: updatedProperty._id,
-    });
-    // --- END ---
+        
+        await LogEntry.create({
+            organization: req.user.organization,
+            actor: req.user.name,
+            type: 'System',
+            message: `Updated details for property: ${updatedProperty.address.street}`,
+            property: updatedProperty._id,
+        });
         res.status(200).json(updatedProperty);
     } catch (error) {
         res.status(500).json({ message: 'Server Error', error: error.message });
@@ -145,68 +113,28 @@ const updateProperty = async (req, res) => {
 };
 
 // @desc    Delete a property
-// @route   DELETE /api/landlord/properties/:id
-// @access  Private (Landlord Only)
-// const deleteProperty = async (req, res) => {
-//     try {
-//         const property = await Property.findById(req.params.id);
-
-//         if (!property) {
-//             return res.status(404).json({ message: 'Property not found' });
-//         }
-
-//         // Security Check: Ensure the landlord owns this property
-//         if (property.organization.toString() !== req.user.organization.toString()) {
-//             return res.status(403).json({ message: 'User not authorized to delete this property' });
-//         }
-//         await LogEntry.create({
-//     organization: req.user.organization,
-//     actor: req.user.name,
-//     type: 'System',
-//     message: `Deleted property: ${property.address.street}`,
-//     property: property._id,
-// });
-//         await Property.findByIdAndDelete(req.params.id);
-//         res.status(200).json({ id: req.params.id, message: 'Property removed successfully' });
-
-//     } catch (error) {
-//         res.status(500).json({ message: 'Server Error', error: error.message });
-//     }
-// };
-
-// @desc    Delete a property
-// @route   DELETE /api/landlord/properties/:id
-// @access  Private (Landlord Only)
 const deleteProperty = async (req, res) => {
     try {
-        const property = await Property.findById(req.params.id);
-
-        if (!property) {
-            return res.status(404).json({ message: 'Property not found' });
-        }
-
-        if (property.organization.toString() !== req.user.organization.toString()) {
-            return res.status(403).json({ message: 'User not authorized to delete this property' });
-        }
-
-        // --- 2. ADD THIS CRITICAL CHECK ---
-        // Check if there is an active lease associated with this property
         const activeLease = await Lease.findOne({ property: req.params.id, status: 'active' });
-
         if (activeLease) {
-            // If a lease exists, block the deletion and send a user-friendly error message
             return res.status(400).json({ message: 'Cannot delete a property with an active lease. Please end the lease first.' });
         }
-        // --- END OF CHECK ---
+        
+        const deletedProperty = await Property.findOneAndDelete({
+            _id: req.params.id,
+            organization: req.user.organization
+        });
 
-        await Property.findByIdAndDelete(req.params.id);
-         // --- 4. ADD THIS LOGIC ---
+        if (!deletedProperty) {
+            return res.status(404).json({ message: 'Property not found or not authorized' });
+        }
+
         await LogEntry.create({
             organization: req.user.organization,
             actor: req.user.name,
             type: 'System',
-            message: `Deleted property: ${property.address.street}`,
-            property: property._id,
+            message: `Deleted property: ${deletedProperty.address.street}`,
+            property: deletedProperty._id,
         });
         res.status(200).json({ id: req.params.id, message: 'Property removed successfully' });
     } catch (error) {
@@ -220,6 +148,228 @@ module.exports = {
     updateProperty,
     deleteProperty,
 };
+// const Property = require('../../models/Property');
+
+// // @desc    Create a new property
+// // @route   POST /api/landlord/properties
+// // @access  Private (Landlord Only)
+
+// const Lease = require('../../models/Lease'); // Import the Lease model to check for active leases
+// const LogEntry = require('../../models/LogEntry');
+// // @desc    Get all properties for the landlord, including their rental status
+// // @route   GET /api/landlord/properties
+// // @access  Private (Landlord Only)
+// // const getProperties = async (req, res) => {
+// //     try {
+// //         const organizationId = req.user.organization;
+
+// //         // 1. Get all of the landlord's properties
+// //         const properties = await Property.find({ organization: organizationId }).lean();
+        
+// //         // 2. Find all property IDs that are linked to an active lease
+// //         const leasedPropertyIds = await Lease.find({
+// //             organization: organizationId,
+// //             status: 'active'
+// //         }).distinct('property');
+
+// //         // 3. Use a Set for an efficient lookup
+// //         const leasedIdsSet = new Set(leasedPropertyIds.map(id => id.toString()));
+
+// //         // 4. Add a 'status' field to each property object before sending it
+// //         const propertiesWithStatus = properties.map(property => ({
+// //             ...property,
+// //             status: leasedIdsSet.has(property._id.toString()) ? 'Rented' : 'Vacant'
+// //         }));
+
+// //         res.status(200).json(propertiesWithStatus);
+// //     } catch (error) {
+// //         res.status(500).json({ message: 'Failed to retrieve properties', error: error.message });
+// //     }
+// // };
+
+// const getProperties = async (req, res) => {
+//     try {
+//         const organizationId = req.user.organization;
+
+//         const properties = await Property.find({ organization: organizationId }).lean();
+//         const propertyIds = properties.map(p => p._id);
+        
+//         const activeLeases = await Lease.find({ 
+//             property: { $in: propertyIds }, 
+//             status: 'active' 
+//         }).select('property status');
+
+//         // Create a map of PropertyID -> LeaseID for quick lookup
+//         const leaseMap = new Map();
+//         activeLeases.forEach(lease => {
+//             leaseMap.set(lease.property.toString(), lease._id.toString());
+//         });
+
+//         const propertiesWithStatus = properties.map(property => {
+//             const propertyIdStr = property._id.toString();
+//             const hasActiveLease = leaseMap.has(propertyIdStr);
+//             return {
+//                 ...property,
+//                 status: hasActiveLease ? 'Rented' : 'Vacant',
+//                 // --- NEW: Include the active lease ID if it exists ---
+//                 activeLeaseId: hasActiveLease ? leaseMap.get(propertyIdStr) : null,
+//             };
+//         });
+
+//         res.status(200).json(propertiesWithStatus);
+//     } catch (error) {
+//         res.status(500).json({ message: 'Failed to retrieve properties', error: error.message });
+//     }
+// };
+// const createProperty = async (req, res) => {
+//     try {
+//         const { address, rentAmount, isListed } = req.body;
+//         const organizationId = req.user.organization;
+
+//         if (!address || !rentAmount) {
+//             return res.status(400).json({ message: 'Please provide all required fields' });
+//         }
+
+//         const newProperty = await Property.create({
+//             address,
+//             rentAmount,
+//             isListed: isListed || false,
+//             organization: organizationId,
+//         });
+//         await LogEntry.create({
+//         organization: req.user.organization,
+//         actor: req.user.name,
+//         type: 'System',
+//         message: `Created new property: ${newProperty.address.street}`,
+//         property: newProperty._id,
+//     });
+//         res.status(201).json(newProperty);
+//     } catch (error) {
+//         res.status(500).json({ message: 'Server Error', error: error.message });
+//     }
+// };
+
+// // @desc    Get all properties for the logged-in landlord
+// // @route   GET /api/landlord/properties
+// // @access  Private (Landlord Only)
+// // const getProperties = async (req, res) => {
+// //     try {
+// //         // This query securely finds properties matching only the logged-in landlord's organization
+// //         const properties = await Property.find({ organization: req.user.organization });
+// //         res.status(200).json(properties);
+// //     } catch (error) {
+// //         res.status(500).json({ message: 'Failed to retrieve properties', error: error.message });
+// //     }
+// // };
+
+// // @desc    Update a property
+// // @route   PUT /api/landlord/properties/:id
+// // @access  Private (Landlord Only)
+// const updateProperty = async (req, res) => {
+//     try {
+//         const property = await Property.findById(req.params.id);
+
+//         if (!property) {
+//             return res.status(404).json({ message: 'Property not found' });
+//         }
+
+//         // Security Check: Ensure the landlord owns this property
+//         if (property.organization.toString() !== req.user.organization.toString()) {
+//             return res.status(403).json({ message: 'User not authorized to update this property' });
+//         }
+
+//         const updatedProperty = await Property.findByIdAndUpdate(req.params.id, req.body, { new: true });
+//          // --- ADD THIS LOGIC ---
+//     await LogEntry.create({
+//         organization: req.user.organization,
+//         actor: req.user.name,
+//         type: 'System',
+//         message: `Updated details for property: ${updatedProperty.address.street}`,
+//         property: updatedProperty._id,
+//     });
+//     // --- END ---
+//         res.status(200).json(updatedProperty);
+//     } catch (error) {
+//         res.status(500).json({ message: 'Server Error', error: error.message });
+//     }
+// };
+
+// // @desc    Delete a property
+// // @route   DELETE /api/landlord/properties/:id
+// // @access  Private (Landlord Only)
+// // const deleteProperty = async (req, res) => {
+// //     try {
+// //         const property = await Property.findById(req.params.id);
+
+// //         if (!property) {
+// //             return res.status(404).json({ message: 'Property not found' });
+// //         }
+
+// //         // Security Check: Ensure the landlord owns this property
+// //         if (property.organization.toString() !== req.user.organization.toString()) {
+// //             return res.status(403).json({ message: 'User not authorized to delete this property' });
+// //         }
+// //         await LogEntry.create({
+// //     organization: req.user.organization,
+// //     actor: req.user.name,
+// //     type: 'System',
+// //     message: `Deleted property: ${property.address.street}`,
+// //     property: property._id,
+// // });
+// //         await Property.findByIdAndDelete(req.params.id);
+// //         res.status(200).json({ id: req.params.id, message: 'Property removed successfully' });
+
+// //     } catch (error) {
+// //         res.status(500).json({ message: 'Server Error', error: error.message });
+// //     }
+// // };
+
+// // @desc    Delete a property
+// // @route   DELETE /api/landlord/properties/:id
+// // @access  Private (Landlord Only)
+// const deleteProperty = async (req, res) => {
+//     try {
+//         const property = await Property.findById(req.params.id);
+
+//         if (!property) {
+//             return res.status(404).json({ message: 'Property not found' });
+//         }
+
+//         if (property.organization.toString() !== req.user.organization.toString()) {
+//             return res.status(403).json({ message: 'User not authorized to delete this property' });
+//         }
+
+//         // --- 2. ADD THIS CRITICAL CHECK ---
+//         // Check if there is an active lease associated with this property
+//         const activeLease = await Lease.findOne({ property: req.params.id, status: 'active' });
+
+//         if (activeLease) {
+//             // If a lease exists, block the deletion and send a user-friendly error message
+//             return res.status(400).json({ message: 'Cannot delete a property with an active lease. Please end the lease first.' });
+//         }
+//         // --- END OF CHECK ---
+
+//         await Property.findByIdAndDelete(req.params.id);
+//          // --- 4. ADD THIS LOGIC ---
+//         await LogEntry.create({
+//             organization: req.user.organization,
+//             actor: req.user.name,
+//             type: 'System',
+//             message: `Deleted property: ${property.address.street}`,
+//             property: property._id,
+//         });
+//         res.status(200).json({ id: req.params.id, message: 'Property removed successfully' });
+//     } catch (error) {
+//         res.status(500).json({ message: 'Server Error', error: error.message });
+//     }
+// };
+
+// module.exports = {
+//     createProperty,
+//     getProperties,
+//     updateProperty,
+//     deleteProperty,
+// };
 // const Property = require('../../models/Property');
 
 // // @desc    Create a new property

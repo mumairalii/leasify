@@ -1,59 +1,59 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import propertyService from './propertyService';
+import propertyService from './propertyService.js';
 
 const initialState = {
     properties: [],
+    page: 1,
+    totalPages: 1,
+    totalProperties: 0,
     isLoading: false,
     isError: false,
     isSuccess: false,
     message: '',
 };
 
-// --- ASYNC THUNKS (Your versions are correct) ---
-export const getProperties = createAsyncThunk('properties/getAll', async (_, thunkAPI) => {
+// The thunks no longer need to access the state for the token
+export const getProperties = createAsyncThunk('properties/getAll', async (paginationArgs, thunkAPI) => {
     try {
-        const token = thunkAPI.getState().auth.user.token;
-        return await propertyService.getProperties(token);
-    } catch (error) {
-        const message = (error.response?.data?.message) || error.message || error.toString();
-        return thunkAPI.rejectWithValue(message);
-    }
-});
-export const createProperty = createAsyncThunk('properties/create', async (propertyData, thunkAPI) => {
-    try {
-        const token = thunkAPI.getState().auth.user.token;
-        return await propertyService.createProperty(propertyData, token);
-    } catch (error) {
-        const message = (error.response?.data?.message) || error.message || error.toString();
-        return thunkAPI.rejectWithValue(message);
-    }
-});
-export const updateProperty = createAsyncThunk('properties/update', async (propertyData, thunkAPI) => {
-    try {
-        const token = thunkAPI.getState().auth.user.token;
-        return await propertyService.updateProperty(propertyData, token);
-    } catch (error) {
-        const message = (error.response?.data?.message) || error.message || error.toString();
-        return thunkAPI.rejectWithValue(message);
-    }
-});
-export const deleteProperty = createAsyncThunk('properties/delete', async (id, thunkAPI) => {
-    try {
-        const token = thunkAPI.getState().auth.user.token;
-        return await propertyService.deleteProperty(id, token);
+        // Just call the service directly. The interceptor handles the token.
+        return await propertyService.getProperties(paginationArgs);
     } catch (error) {
         const message = (error.response?.data?.message) || error.message || error.toString();
         return thunkAPI.rejectWithValue(message);
     }
 });
 
+export const createProperty = createAsyncThunk('properties/create', async (propertyData, thunkAPI) => {
+    try {
+        return await propertyService.createProperty(propertyData);
+    } catch (error) {
+        const message = (error.response?.data?.message) || error.message || error.toString();
+        return thunkAPI.rejectWithValue(message);
+    }
+});
+
+export const updateProperty = createAsyncThunk('properties/update', async (propertyData, thunkAPI) => {
+    try {
+        return await propertyService.updateProperty(propertyData);
+    } catch (error) {
+        const message = (error.response?.data?.message) || error.message || error.toString();
+        return thunkAPI.rejectWithValue(message);
+    }
+});
+
+export const deleteProperty = createAsyncThunk('properties/delete', async (id, thunkAPI) => {
+    try {
+        return await propertyService.deleteProperty(id);
+    } catch (error) {
+        const message = (error.response?.data?.message) || error.message || error.toString();
+        return thunkAPI.rejectWithValue(message);
+    }
+});
 
 export const propertySlice = createSlice({
     name: 'properties',
     initialState,
     reducers: {
-        // --- THIS IS THE CORRECTED RESET REDUCER ---
-        // It now only resets the status fields, leaving the data intact.
         reset: (state) => {
             state.isLoading = false;
             state.isError = false;
@@ -67,31 +67,144 @@ export const propertySlice = createSlice({
             .addCase(getProperties.fulfilled, (state, action) => {
                 state.isLoading = false;
                 state.isSuccess = true;
-                state.properties = action.payload;
+                state.properties = action.payload.properties;
+                state.page = action.payload.page;
+                state.totalPages = action.payload.totalPages;
+                state.totalProperties = action.payload.totalProperties;
             })
             .addCase(getProperties.rejected, (state, action) => {
-                state.isLoading = false;
-                state.isError = true;
-                state.message = action.payload;
+                state.isLoading = false; state.isError = true; state.message = action.payload;
             })
             .addCase(createProperty.fulfilled, (state, action) => {
-                state.properties.push(action.payload);
+                // For simplicity, we can just refetch the current page to see the new property
+                // This avoids complex logic for adding an item to a paginated list
             })
             .addCase(updateProperty.fulfilled, (state, action) => {
-                state.properties = state.properties.map((property) =>
-                    property._id === action.payload._id ? action.payload : property
+                state.properties = state.properties.map((p) =>
+                    p._id === action.payload._id ? action.payload : p
                 );
             })
             .addCase(deleteProperty.fulfilled, (state, action) => {
-                state.properties = state.properties.filter(
-                    (property) => property._id !== action.payload.id
-                );
+                // Refetching is also a good strategy after a delete
             });
     },
 });
 
 export const { reset } = propertySlice.actions;
 export default propertySlice.reducer;
+
+// import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+// import propertyService from './propertyService';
+
+// const initialState = {
+//    properties: [],
+//     page: 1,
+//     totalPages: 1,
+//     totalProperties: 0,
+//     isLoading: false,
+//     isError: false,
+//     isSuccess: false,
+//     message: '',
+// };
+
+// // --- ASYNC THUNKS (Your versions are correct) ---
+// // export const getProperties = createAsyncThunk('properties/getAll', async (_, thunkAPI) => {
+// //     try {
+// //         const token = thunkAPI.getState().auth.user.token;
+// //         return await propertyService.getProperties(token);
+// //     } catch (error) {
+// //         const message = (error.response?.data?.message) || error.message || error.toString();
+// //         return thunkAPI.rejectWithValue(message);
+// //     }
+// // });
+// // 2. Update the getProperties thunk to accept pagination args
+// export const getProperties = createAsyncThunk('properties/getAll', async (paginationArgs, thunkAPI) => {
+//     try {
+//         const token = thunkAPI.getState().auth.user.token;
+//         // Pass the pagination arguments to the service
+//         return await propertyService.getProperties(token, paginationArgs);
+//     } catch (error) {
+//         const message = (error.response?.data?.message) || error.message || error.toString();
+//         return thunkAPI.rejectWithValue(message);
+//     }
+// });
+// export const createProperty = createAsyncThunk('properties/create', async (propertyData, thunkAPI) => {
+//     try {
+//         const token = thunkAPI.getState().auth.user.token;
+//         return await propertyService.createProperty(propertyData, token);
+//     } catch (error) {
+//         const message = (error.response?.data?.message) || error.message || error.toString();
+//         return thunkAPI.rejectWithValue(message);
+//     }
+// });
+// export const updateProperty = createAsyncThunk('properties/update', async (propertyData, thunkAPI) => {
+//     try {
+//         const token = thunkAPI.getState().auth.user.token;
+//         return await propertyService.updateProperty(propertyData, token);
+//     } catch (error) {
+//         const message = (error.response?.data?.message) || error.message || error.toString();
+//         return thunkAPI.rejectWithValue(message);
+//     }
+// });
+// export const deleteProperty = createAsyncThunk('properties/delete', async (id, thunkAPI) => {
+//     try {
+//         const token = thunkAPI.getState().auth.user.token;
+//         return await propertyService.deleteProperty(id, token);
+//     } catch (error) {
+//         const message = (error.response?.data?.message) || error.message || error.toString();
+//         return thunkAPI.rejectWithValue(message);
+//     }
+// });
+
+
+// export const propertySlice = createSlice({
+//     name: 'properties',
+//     initialState,
+//     reducers: {
+//         // --- THIS IS THE CORRECTED RESET REDUCER ---
+//         // It now only resets the status fields, leaving the data intact.
+//         reset: (state) => {
+//             state.isLoading = false;
+//             state.isError = false;
+//             state.isSuccess = false;
+//             state.message = '';
+//         },
+//     },
+//     extraReducers: (builder) => {
+//         builder
+//             .addCase(getProperties.pending, (state) => { state.isLoading = true; })
+//             // 3. Update the fulfilled case to handle the new response object
+//             .addCase(getProperties.fulfilled, (state, action) => {
+//                 state.isLoading = false;
+//                 state.isSuccess = true;
+//                 state.properties = action.payload.properties;
+//                 state.page = action.payload.page;
+//                 state.totalPages = action.payload.totalPages;
+//                 state.totalProperties = action.payload.totalProperties;
+//             })
+//             .addCase(getProperties.rejected, (state, action) => {
+//                 state.isLoading = false;
+//                 state.isError = true;
+//                 state.message = action.payload;
+//             })
+//             .addCase(createProperty.fulfilled, (state, action) => {
+//                 state.properties.push(action.payload);
+//             })
+//             .addCase(updateProperty.fulfilled, (state, action) => {
+//                 state.properties = state.properties.map((property) =>
+//                     property._id === action.payload._id ? action.payload : property
+//                 );
+//             })
+//             .addCase(deleteProperty.fulfilled, (state, action) => {
+//                 state.properties = state.properties.filter(
+//                     (property) => property._id !== action.payload.id
+//                 );
+//             });
+//     },
+// });
+
+// export const { reset } = propertySlice.actions;
+// export default propertySlice.reducer;
 // import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 // import propertyService from './propertyService';
 

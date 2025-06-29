@@ -1,26 +1,20 @@
-// src/features/applications/applicationService.js
-import api from '../../services/api';
+import api from '../../services/api.js';
 
-// --- THIS IS THE CORRECTED CODE ---
-// We now use relative paths (e.g., 'applications') instead of absolute paths ('/api/applications')
+// The 'token' argument is removed from all functions.
 
-const createApplication = async (applicationData, token) => {
-    const config = { headers: { Authorization: `Bearer ${token}` } };
-    const response = await api.post('applications', applicationData, config);
+const createApplication = async (applicationData) => {
+    const response = await api.post('applications', applicationData);
     return response.data;
 };
 
-const getApplications = async (token) => {
-    const config = { headers: { Authorization: `Bearer ${token}` } };
-    const response = await api.get('applications', config);
+const getApplications = async () => {
+    const response = await api.get('applications');
     return response.data;
 };
 
-const updateApplicationStatus = async (data, token) => {
+const updateApplicationStatus = async (data) => {
     const { id, status } = data;
-    const config = { headers: { Authorization: `Bearer ${token}` } };
-    // FIX: The path is now `applications/${id}` which correctly appends to the base URL
-    const response = await api.put(`applications/${id}`, { status }, config);
+    const response = await api.put(`applications/${id}`, { status });
     return response.data;
 };
 
@@ -31,6 +25,40 @@ const applicationService = {
 };
 
 export default applicationService;
+
+// // src/features/applications/applicationService.js
+// import api from '../../services/api';
+
+// // --- THIS IS THE CORRECTED CODE ---
+// // We now use relative paths (e.g., 'applications') instead of absolute paths ('/api/applications')
+
+// const createApplication = async (applicationData, token) => {
+//     const config = { headers: { Authorization: `Bearer ${token}` } };
+//     const response = await api.post('applications', applicationData, config);
+//     return response.data;
+// };
+
+// const getApplications = async (token) => {
+//     const config = { headers: { Authorization: `Bearer ${token}` } };
+//     const response = await api.get('applications', config);
+//     return response.data;
+// };
+
+// const updateApplicationStatus = async (data, token) => {
+//     const { id, status } = data;
+//     const config = { headers: { Authorization: `Bearer ${token}` } };
+//     // FIX: The path is now `applications/${id}` which correctly appends to the base URL
+//     const response = await api.put(`applications/${id}`, { status }, config);
+//     return response.data;
+// };
+
+// const applicationService = {
+//     createApplication,
+//     getApplications,
+//     updateApplicationStatus,
+// };
+
+// export default applicationService;
 // // src/features/applications/applicationService.js
 // import api from '../../services/api';
 

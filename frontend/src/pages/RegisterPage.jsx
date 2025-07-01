@@ -51,7 +51,7 @@ function RegisterPage() {
             {/* Left Branding Panel */}
             <div className="hidden bg-gray-100 lg:flex lg:flex-col lg:items-center lg:justify-center dark:bg-gray-800 p-10 text-center">
                 <div className="mx-auto w-[350px]">
-                    <h1 className="text-5xl font-bold text-blue-600">PropMan Hub</h1>
+                    <h1 className="text-5xl font-bold text-blue-600">Leasify</h1>
                     <p className="mt-4 text-xl text-gray-600 dark:text-gray-300">
                         Join our platform to streamline your rental experience.
                     </p>

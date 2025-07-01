@@ -163,17 +163,145 @@
 //     console.log(`INFO: Server is operational and listening on port ${PORT}`);
 // });
 
+// // 1. INITIAL SETUP
+// require('dotenv').config();
+// const express = require('express');
+// const mongoose = require('mongoose');
+// const cors = require('cors');
+
+// // --- ROUTE IMPORTS (One for each feature) ---
+// const authRoutes = require('./routes/authRoutes');
+// const publicRoutes = require('./routes/publicRoutes');
+// const applicationRoutes = require('./routes/applicationRoutes');
+// // Landlord-specific routes
+// const landlordPropertyRoutes = require('./routes/landlord/propertyRoutes');
+// const landlordLeaseRoutes = require('./routes/landlord/leaseRoutes');
+// const landlordMaintenanceRoutes = require('./routes/landlord/maintenanceRoutes');
+// const landlordDashboardRoutes = require('./routes/landlord/dashboardRoutes');
+// const landlordTaskRoutes = require('./routes/landlord/taskRoutes');
+// const landlordPaymentRoutes = require('./routes/landlord/paymentRoutes');
+// const landlordTenantRoutes = require('./routes/landlord/tenantRoutes');
+// const landlordLogRoutes = require('./routes/landlord/logRoutes');
+// // Tenant-specific routes
+// const tenantLeaseRoutes = require('./routes/tenant/leaseRoutes');
+// const tenantMaintenanceRoutes = require('./routes/tenant/maintenanceRoutes');
+// const tenantPaymentRoutes = require('./routes/tenant/paymentRoutes');
+// // Controller import for webhook
+// const { handleStripeWebhook } = require('./controllers/landlord/paymentController');
+
+// const { notFound, errorHandler } = require('./middleware/errorMiddleware');
+
+
+
+// // --- APP INITIALIZATION ---
+// const app = express();
+// const PORT = process.env.PORT || 5001;
+
+
+// // // --- MIDDLEWARE SETUP ---
+
+// // // IMPORTANT: The Stripe webhook route must be registered BEFORE express.json()
+// // // It needs the raw request body, not the parsed JSON.
+// // app.post('/api/stripe-webhook', express.raw({type: 'application/json'}), handleStripeWebhook);
+
+// // // Standard middleware
+// // app.use(cors());
+// // app.use(express.json());
+// // app.use((req, res, next) => {
+// //   res.set('Cache-Control', 'no-store');
+// //   next();
+// // });
+// // --- MIDDLEWARE SETUP ---
+
+// // IMPORTANT: The Stripe webhook route must be registered BEFORE express.json()
+// // It needs the raw request body, not the parsed JSON.
+// app.post('/api/stripe-webhook', express.raw({type: 'application/json'}), handleStripeWebhook);
+
+// // --- CORS Configuration ---
+// const allowedOrigins = [
+//   'http://localhost:5173', // Your Vite dev server
+//   // Add your deployed frontend URL here once you have it
+//   'https://leaseify.netlify.app'
+// ];
+
+// const corsOptions = {
+//   origin: (origin, callback) => {
+//     // Allow requests with no origin (like mobile apps or curl requests)
+//     if (!origin) return callback(null, true);
+//     if (allowedOrigins.indexOf(origin) === -1) {
+//       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+//       return callback(new Error(msg), false);
+//     }
+//     return callback(null, true);
+//   }
+// };
+// app.use(cors(corsOptions)); // Use the new options
+
+// // Standard middleware
+// app.use(express.json());
+
+
+
+// // --- API ROUTE REGISTRATION ---
+// app.use('/api/auth', authRoutes);
+// app.use('/api/properties', publicRoutes); // For public property listings
+// app.use('/api/applications', applicationRoutes); // For tenants applying and landlords managing
+
+// // Landlord-specific route groups
+// app.use('/api/landlord/properties', landlordPropertyRoutes);
+// app.use('/api/landlord/leases', landlordLeaseRoutes);
+// app.use('/api/landlord/maintenance-requests', landlordMaintenanceRoutes);
+// app.use('/api/landlord/dashboard', landlordDashboardRoutes);
+// app.use('/api/landlord/tasks', landlordTaskRoutes);
+// app.use('/api/landlord/payments', landlordPaymentRoutes);
+// app.use('/api/landlord/tenants', landlordTenantRoutes);
+// app.use('/api/landlord/logs', landlordLogRoutes);
+
+// // Tenant-specific route groups
+// app.use('/api/tenant/lease', tenantLeaseRoutes);
+// app.use('/api/tenant/maintenance-requests', tenantMaintenanceRoutes);
+// app.use('/api/tenant/payments', tenantPaymentRoutes);
+
+// app.use(notFound);    // This will catch any request that doesn't match a route
+// app.use(errorHandler); // This is our main error handler
+
+// const { notFound, errorHandler } = require('./middleware/errorMiddleware');
+
+// app.use(notFound);    // This will catch any request that doesn't match a route.
+// app.use(errorHandler); // This is our main error handler.
+
+// // --- DATABASE CONNECTION & SERVER START ---
+// const DB_URI = process.env.MONGO_URI;
+// if (!DB_URI) {
+//     console.error('FATAL ERROR: MONGO_URI is not defined in your .env file. The application cannot start.');
+//     process.exit(1);
+// }
+
+// mongoose.connect(DB_URI)
+//     .then(() => {
+//         console.log('SUCCESS: MongoDB connection established successfully.');
+//         // app.listen(PORT, () => console.log(`INFO: Server is operational and listening on port ${PORT}`));
+//     })
+//     .catch((error) => {
+//         console.error('ERROR: MongoDB connection failed.', error.message);
+//         process.exit(1);
+//     });
+
+
+// module.exports = app;    
+
+
 // 1. INITIAL SETUP
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 
-// --- ROUTE IMPORTS (One for each feature) ---
+// --- ROUTE IMPORTS ---
 const authRoutes = require('./routes/authRoutes');
 const publicRoutes = require('./routes/publicRoutes');
 const applicationRoutes = require('./routes/applicationRoutes');
-// Landlord-specific routes
+// Landlord routes
 const landlordPropertyRoutes = require('./routes/landlord/propertyRoutes');
 const landlordLeaseRoutes = require('./routes/landlord/leaseRoutes');
 const landlordMaintenanceRoutes = require('./routes/landlord/maintenanceRoutes');
@@ -182,72 +310,43 @@ const landlordTaskRoutes = require('./routes/landlord/taskRoutes');
 const landlordPaymentRoutes = require('./routes/landlord/paymentRoutes');
 const landlordTenantRoutes = require('./routes/landlord/tenantRoutes');
 const landlordLogRoutes = require('./routes/landlord/logRoutes');
-// Tenant-specific routes
+// Tenant routes
 const tenantLeaseRoutes = require('./routes/tenant/leaseRoutes');
 const tenantMaintenanceRoutes = require('./routes/tenant/maintenanceRoutes');
 const tenantPaymentRoutes = require('./routes/tenant/paymentRoutes');
 // Controller import for webhook
 const { handleStripeWebhook } = require('./controllers/landlord/paymentController');
-
+// Error handling middleware import
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
-
-
 
 // --- APP INITIALIZATION ---
 const app = express();
-const PORT = process.env.PORT || 5001;
 
+// --- CORE MIDDLEWARE ---
+// IMPORTANT: Stripe webhook must be registered BEFORE express.json()
+app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), handleStripeWebhook);
 
-// // --- MIDDLEWARE SETUP ---
-
-// // IMPORTANT: The Stripe webhook route must be registered BEFORE express.json()
-// // It needs the raw request body, not the parsed JSON.
-// app.post('/api/stripe-webhook', express.raw({type: 'application/json'}), handleStripeWebhook);
-
-// // Standard middleware
-// app.use(cors());
-// app.use(express.json());
-// app.use((req, res, next) => {
-//   res.set('Cache-Control', 'no-store');
-//   next();
-// });
-// --- MIDDLEWARE SETUP ---
-
-// IMPORTANT: The Stripe webhook route must be registered BEFORE express.json()
-// It needs the raw request body, not the parsed JSON.
-app.post('/api/stripe-webhook', express.raw({type: 'application/json'}), handleStripeWebhook);
-
-// --- CORS Configuration ---
 const allowedOrigins = [
-  'http://localhost:5173', // Your Vite dev server
-  // Add your deployed frontend URL here once you have it
+  'http://localhost:5173',
   'https://leaseify.netlify.app'
 ];
-
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
     }
-    return callback(null, true);
   }
 };
-app.use(cors(corsOptions)); // Use the new options
-
-// Standard middleware
+app.use(cors(corsOptions));
 app.use(express.json());
-
-
 
 // --- API ROUTE REGISTRATION ---
 app.use('/api/auth', authRoutes);
-app.use('/api/properties', publicRoutes); // For public property listings
-app.use('/api/applications', applicationRoutes); // For tenants applying and landlords managing
-
-// Landlord-specific route groups
+app.use('/api/properties', publicRoutes);
+app.use('/api/applications', applicationRoutes);
+// Landlord routes
 app.use('/api/landlord/properties', landlordPropertyRoutes);
 app.use('/api/landlord/leases', landlordLeaseRoutes);
 app.use('/api/landlord/maintenance-requests', landlordMaintenanceRoutes);
@@ -256,33 +355,16 @@ app.use('/api/landlord/tasks', landlordTaskRoutes);
 app.use('/api/landlord/payments', landlordPaymentRoutes);
 app.use('/api/landlord/tenants', landlordTenantRoutes);
 app.use('/api/landlord/logs', landlordLogRoutes);
-
-// Tenant-specific route groups
+// Tenant routes
 app.use('/api/tenant/lease', tenantLeaseRoutes);
 app.use('/api/tenant/maintenance-requests', tenantMaintenanceRoutes);
 app.use('/api/tenant/payments', tenantPaymentRoutes);
 
-app.use(notFound);    // This will catch any request that doesn't match a route
-app.use(errorHandler); // This is our main error handler
+// --- ERROR HANDLING MIDDLEWARE (MUST be last) ---
+app.use(notFound);
+app.use(errorHandler);
 
-
-
-// --- DATABASE CONNECTION & SERVER START ---
-const DB_URI = process.env.MONGO_URI;
-if (!DB_URI) {
-    console.error('FATAL ERROR: MONGO_URI is not defined in your .env file. The application cannot start.');
-    process.exit(1);
-}
-
-mongoose.connect(DB_URI)
-    .then(() => {
-        console.log('SUCCESS: MongoDB connection established successfully.');
-        // app.listen(PORT, () => console.log(`INFO: Server is operational and listening on port ${PORT}`));
-    })
-    .catch((error) => {
-        console.error('ERROR: MongoDB connection failed.', error.message);
-        process.exit(1);
-    });
-
-
-module.exports = app;    
+// --- EXPORT APP FOR TESTING ---
+// We no longer start the server or connect to the DB in this file.
+// That is handled by index.js to make our app testable.
+module.exports = app;

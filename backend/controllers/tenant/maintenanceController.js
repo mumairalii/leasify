@@ -1,112 +1,127 @@
-// tenant_manage/backend/controllers/tenant/maintenanceController.js
-
+const asyncHandler = require('express-async-handler');
 const { validationResult } = require('express-validator');
 const MaintenanceRequest = require('../../models/MaintenanceRequest');
 const Lease = require('../../models/Lease');
 
-// @desc    Create a new maintenance request
-// @route   POST /api/tenant/maintenance-requests
-// @access  Private (Tenant Only)
-// const createMaintenanceRequest = async (req, res) => {
-//     const errors = validationResult(req);
-//     if (!errors.isEmpty()) {
-//         return res.status(400).json({ errors: errors.array() });
-//     }
-
-//     const { description } = req.body;
-
-//     try {
-//         const activeLease = await Lease.findOne({ tenant: req.user.id, status: 'active' });
-
-//         if (!activeLease) {
-//             return res.status(400).json({ message: 'You must have an active lease to submit a maintenance request.' });
-//         }
-
-//         // --- FIX: The incorrect 'property' field has been removed ---
-//         // The relationship is correctly handled via the 'lease' field.
-//         const newRequest = await MaintenanceRequest.create({
-//             lease: activeLease._id,
-//             tenant: req.user.id,
-//             organization: activeLease.organization,
-//             description,
-//         });
-
-//         res.status(201).json(newRequest);
-
-//     } catch (error) {
-//         console.error("Error creating maintenance request:", error);
-//         res.status(500).json({ message: 'Server Error' });
-//     }
-// };
-const createMaintenanceRequest = async (req, res) => {
+const createRequest = asyncHandler(async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+        res.status(400);
+        throw new Error('Validation failed', { cause: errors.array() });
     }
 
     const { description } = req.body;
+    const activeLease = await Lease.findOne({ 
+        tenant: req.user.id, 
+        status: 'active' 
+    });
 
-    try {
-        // Find the active lease for the logged-in tenant
-        const activeLease = await Lease.findOne({ tenant: req.user.id, status: 'active' });
-
-        if (!activeLease) {
-            return res.status(400).json({ message: 'You must have an active lease to submit a maintenance request.' });
-        }
-
-        // --- FIX: Add the required 'property' field ---
-        // Your model requires this field, so we add it from the active lease.
-        const newRequest = await MaintenanceRequest.create({
-            lease: activeLease._id,
-            property: activeLease.property, // This line provides the required property ID
-            tenant: req.user.id,
-            organization: activeLease.organization,
-            description,
-        });
-
-        res.status(201).json(newRequest);
-
-    } catch (error) {
-        // This console.error will now clearly show the validation error you provided
-        console.error("Error creating maintenance request:", error);
-        res.status(500).json({ message: 'Server Error' });
+    if (!activeLease) {
+        res.status(404);
+        throw new Error('No active lease found for this tenant. Cannot create a maintenance request.');
     }
-};
 
-// @desc    Get all of the logged-in tenant's requests
-// @route   GET /api/tenant/maintenance-requests
-// @access  Private (Tenant Only)
-const getTenantRequests = async (req, res) => {
-    try {
-        // --- FIX: Using nested populate to get the property address correctly ---
-        const requests = await MaintenanceRequest.find({ tenant: req.user.id })
-            .sort({ createdAt: -1 })
-            .populate({
-                path: 'lease',
-                select: 'property',
-                populate: {
-                    path: 'property',
-                    select: 'address'
-                }
-            });
-        
-        // Flatten the data for easier use on the frontend
-        const formattedRequests = requests.map(req => ({
-            _id: req._id,
-            description: req.description,
-            status: req.status,
-            createdAt: req.createdAt,
-            property: req.lease?.property,
-        }));
-        
-        res.status(200).json(formattedRequests);
-    } catch (error) {
-        console.error("Error fetching tenant's maintenance requests:", error);
-        res.status(500).json({ message: 'Server Error' });
-    }
-};
+    const request = await MaintenanceRequest.create({
+        tenant: req.user.id,
+        property: activeLease.property,
+        organization: activeLease.organization,
+        description,
+        lease: activeLease._id,
+        status: 'Pending' // Explicitly set status
+    });
 
-module.exports = { createMaintenanceRequest, getTenantRequests };
+    res.status(201).json(request);
+});
+
+const getRequests = asyncHandler(async (req, res) => {
+    const requests = await MaintenanceRequest.find({ tenant: req.user.id })
+        .sort({ createdAt: -1 })
+        .populate('property', 'address')
+        .populate('lease', 'property status'); // Include lease with necessary fields
+
+    res.status(200).json(requests);
+});
+
+module.exports = { 
+    createRequest, 
+    getRequests 
+};
+// const asyncHandler = require('express-async-handler');
+// const { validationResult } = require('express-validator');
+// const MaintenanceRequest = require('../../models/MaintenanceRequest');
+// const Lease = require('../../models/Lease');
+
+// const createRequest = asyncHandler(async (req, res) => {
+//     // Check for validation errors first
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//         res.status(400);
+//         throw new Error('Validation failed', { cause: errors.array() });
+//     }
+
+//     const { description } = req.body;
+//     const activeLease = await Lease.findOne({ tenant: req.user.id, status: 'active' });
+
+//     if (!activeLease) {
+//         res.status(404);
+//         throw new Error('No active lease found for this tenant. Cannot create a maintenance request.');
+//     }
+
+//     const request = await MaintenanceRequest.create({
+//         tenant: req.user.id,
+//         property: activeLease.property,
+//         organization: activeLease.organization,
+//         description,
+//         lease: activeLease._id,
+//     });
+
+//     res.status(201).json(request);
+// });
+
+// const getRequests = asyncHandler(async (req, res) => {
+//     const requests = await MaintenanceRequest.find({ tenant: req.user.id })
+//         .sort({ createdAt: -1 })
+//         .populate('property', 'address');
+
+//     res.status(200).json(requests);
+// });
+
+// module.exports = {  createRequest, 
+//     getRequests  };
+
+
+// const getTenantRequests = async (req, res) => {
+//     try {
+//         // --- FIX: Using nested populate to get the property address correctly ---
+//         const requests = await MaintenanceRequest.find({ tenant: req.user.id })
+//             .sort({ createdAt: -1 })
+//             .populate({
+//                 path: 'lease',
+//                 select: 'property',
+//                 populate: {
+//                     path: 'property',
+//                     select: 'address'
+//                 }
+//             });
+        
+//         // Flatten the data for easier use on the frontend
+//         const formattedRequests = requests.map(req => ({
+//             _id: req._id,
+//             description: req.description,
+//             status: req.status,
+//             createdAt: req.createdAt,
+//             property: req.lease?.property,
+//         }));
+        
+//         res.status(200).json(formattedRequests);
+//     } catch (error) {
+//         console.error("Error fetching tenant's maintenance requests:", error);
+//         res.status(500).json({ message: 'Server Error' });
+//     }
+// };
+
+// module.exports = { createRequest, 
+//     getRequests  };
 
 
 // const { validationResult } = require('express-validator');

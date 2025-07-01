@@ -1,9 +1,10 @@
 // tenant_manage/backend/controllers/landlord/paymentController.js
 
+const asyncHandler = require('express-async-handler');
+const { validationResult } = require('express-validator');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const Payment = require('../../models/Payment');
 const Lease = require('../../models/Lease');
-const User = require('../../models/User');
 const LogEntry = require('../../models/LogEntry');
 
 /**
@@ -91,52 +92,110 @@ const createPaymentIntent = async (req, res) => {
     }
 };
 
-const logOfflinePayment = async (req, res) => {
-    try {
-        const { leaseId, amount, paymentDate, method, notes } = req.body;
-        const lease = await Lease.findById(leaseId);
-        if (!lease || lease.organization.toString() !== req.user.organization.toString()) {
-            return res.status(404).json({ message: 'Lease not found or you are not authorized.' });
-        }
-        const newPayment = await Payment.create({
-            property: lease.property,
-            lease: lease._id,
-            tenant: lease.tenant,
-            organization: req.user.organization,
-            amount,
-            paymentDate,
-            method,
-            notes,
-        });
-        await LogEntry.create({
-            organization: req.user.organization,
-            actor: req.user.name,
-            type: 'Payment',
-            message: `Logged offline payment of $${amount} (${method})`,
-            tenant: lease.tenant,
-            property: lease.property,
-        });
-        res.status(201).json(newPayment);
-    } catch (error) {
-        console.error("Error logging offline payment:", error);
-        res.status(500).json({ message: 'Server Error' });
-    }
-};
+// const logOfflinePayment = async (req, res) => {
+//     try {
+//         const { leaseId, amount, paymentDate, method, notes } = req.body;
+//         const lease = await Lease.findById(leaseId);
+//         if (!lease || lease.organization.toString() !== req.user.organization.toString()) {
+//             return res.status(404).json({ message: 'Lease not found or you are not authorized.' });
+//         }
+//         const newPayment = await Payment.create({
+//             property: lease.property,
+//             lease: lease._id,
+//             tenant: lease.tenant,
+//             organization: req.user.organization,
+//             amount,
+//             paymentDate,
+//             method,
+//             notes,
+//         });
+//         await LogEntry.create({
+//             organization: req.user.organization,
+//             actor: req.user.name,
+//             type: 'Payment',
+//             message: `Logged offline payment of $${amount} (${method})`,
+//             tenant: lease.tenant,
+//             property: lease.property,
+//         });
+//         res.status(201).json(newPayment);
+//     } catch (error) {
+//         console.error("Error logging offline payment:", error);
+//         res.status(500).json({ message: 'Server Error' });
+//     }
+// };
 
-const getPaymentsForLease = async (req, res) => {
-    try {
-        const { leaseId } = req.params;
-        const lease = await Lease.findById(leaseId);
-        if (!lease || lease.organization.toString() !== req.user.organization.toString()) {
-            return res.status(404).json({ message: 'Lease not found or not authorized' });
-        }
-        const payments = await Payment.find({ lease: leaseId }).sort({ paymentDate: -1 });
-        res.status(200).json(payments);
-    } catch (error) {
-        console.error('Error fetching payments for lease:', error);
-        res.status(500).json({ message: 'Server Error' });
+// const getPaymentsForLease = async (req, res) => {
+//     try {
+//         const { leaseId } = req.params;
+//         const lease = await Lease.findById(leaseId);
+//         if (!lease || lease.organization.toString() !== req.user.organization.toString()) {
+//             return res.status(404).json({ message: 'Lease not found or not authorized' });
+//         }
+//         const payments = await Payment.find({ lease: leaseId }).sort({ paymentDate: -1 });
+//         res.status(200).json(payments);
+//     } catch (error) {
+//         console.error('Error fetching payments for lease:', error);
+//         res.status(500).json({ message: 'Server Error' });
+//     }
+// };
+
+// @desc    Landlord logs a payment received outside the app
+// @route   POST /api/landlord/payments/log-offline
+// @access  Private (Landlord Only)
+const logOfflinePayment = asyncHandler(async (req, res) => {
+    // Check for validation errors first
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        res.status(400);
+        throw new Error('Validation failed', { cause: errors.array() });
     }
-};
+
+    const { leaseId, amount, paymentDate, method, notes } = req.body;
+
+    const lease = await Lease.findOne({ _id: leaseId, organization: req.user.organization });
+    if (!lease) {
+        res.status(404);
+        throw new Error('Lease not found or you are not authorized');
+    }
+
+    const payment = await Payment.create({
+        lease: leaseId,
+        tenant: lease.tenant,
+        landlord: req.user.id,
+        organization: req.user.organization,
+        amount,
+        method,
+        paymentDate,
+        notes,
+        status: 'succeeded', // Offline payments are always considered successful
+    });
+
+    await LogEntry.create({
+        organization: req.user.organization,
+        actor: req.user.name,
+        type: 'Payment',
+        message: `Logged an offline payment of $${amount} for lease.`,
+        lease: leaseId,
+        tenant: lease.tenant,
+    });
+
+    res.status(201).json(payment);
+});
+
+// @desc    Get all payments for a specific lease
+// @route   GET /api/landlord/payments/lease/:leaseId
+// @access  Private (Landlord Only)
+const getPaymentsForLease = asyncHandler(async (req, res) => {
+    // Basic check to ensure landlord can only access leases in their org
+    const lease = await Lease.findOne({ _id: req.params.leaseId, organization: req.user.organization });
+    if (!lease) {
+        res.status(404);
+        throw new Error('Lease not found or you are not authorized');
+    }
+
+    const payments = await Payment.find({ lease: req.params.leaseId }).sort({ paymentDate: -1 });
+    res.status(200).json(payments);
+});
 
 const handleStripeWebhook = (req, res) => {
     const sig = req.headers['stripe-signature'];

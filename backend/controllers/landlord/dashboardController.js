@@ -1,69 +1,114 @@
-// tenant_manage/backend/controllers/landlord/dashboardController.js
-
-const mongoose = require('mongoose');
+const asyncHandler = require('express-async-handler');
 const Property = require('../../models/Property');
 const MaintenanceRequest = require('../../models/MaintenanceRequest');
-const Lease = require('../../models/Lease');
 
-// @desc    Get dashboard statistics for a landlord
-// @route   GET /api/landlord/dashboard/stats
-// @access  Private (Landlord Only)
-const getDashboardStats = async (req, res) => {
-    try {
-        const organizationId = new mongoose.Types.ObjectId(req.user.organization);
+/**
+ * @desc    Get dashboard statistics for the landlord
+ * @route   GET /api/landlord/dashboard/stats
+ * @access  Private (Landlord Only)
+ */
+const getDashboardStats = asyncHandler(async (req, res) => {
+    const organizationId = req.user.organization;
 
-        const [
-            totalProperties,
-            monthlyRentData,
-            openMaintenanceCount,
-            // --- THIS IS THE FIX ---
-            // Get a list of unique property IDs that have active leases
-            occupiedProperties
-        ] = await Promise.all([
-            Property.countDocuments({ organization: organizationId }),
-            Property.aggregate([
-                { $match: { organization: organizationId } },
-                { $group: { _id: null, totalRent: { $sum: '$rentAmount' } } }
-            ]),
-            MaintenanceRequest.countDocuments({ organization: organizationId, status: { $ne: 'Completed' } }),
-            // This query now finds all unique properties associated with active leases
-            Lease.find({ organization: organizationId, status: 'active' }).distinct('property')
-        ]);
+    // Run all database queries in parallel for maximum efficiency
+    const [
+        totalProperties,
+        vacantUnits,
+        totalMonthlyRent,
+        openMaintenanceCount,
+        highPriorityMaintenance
+    ] = await Promise.all([
+        Property.countDocuments({ organization: organizationId }),
+        Property.countDocuments({ organization: organizationId, status: 'Vacant' }),
+        Property.aggregate([
+            { $match: { organization: new mongoose.Types.ObjectId(organizationId) } },
+            { $group: { _id: null, totalRent: { $sum: '$rentAmount' } } }
+        ]),
+        MaintenanceRequest.countDocuments({ organization: organizationId, status: { $ne: 'Completed' } }),
+        MaintenanceRequest.countDocuments({ organization: organizationId, priority: 'High', status: { $ne: 'Completed' } })
+    ]);
 
-        // The number of occupied properties is the length of the unique list
-        const occupiedPropertyCount = occupiedProperties.length;
+    const occupancyRate = totalProperties > 0 ? Math.round(((totalProperties - vacantUnits) / totalProperties) * 100) : 0;
+    const rent = totalMonthlyRent[0]?.totalRent || 0;
 
-        // --- Calculate rate and vacant units based on the accurate count ---
-        const occupancyRate = totalProperties > 0 
-            ? Math.round((occupiedPropertyCount / totalProperties) * 100) 
-            : 0;
-            
-        const vacantUnits = totalProperties - occupiedPropertyCount;
-        
-        const highPriorityMaintenance = await MaintenanceRequest.countDocuments({ 
-            organization: organizationId, 
-            status: 'Pending' // Or a dedicated 'priority' field if you add one later
-        });
-
-        const stats = {
-            totalProperties,
-            totalMonthlyRent: monthlyRentData[0]?.totalRent || 0,
-            openMaintenanceCount,
-            occupancyRate,
-            vacantUnits,
-            highPriorityMaintenance
-        };
-
-        res.status(200).json(stats);
-    } catch (error) {
-        console.error("Error fetching dashboard stats:", error);
-        res.status(500).json({ message: 'Server Error' });
-    }
-};
+    res.status(200).json({
+        totalProperties,
+        vacantUnits,
+        totalMonthlyRent: rent,
+        openMaintenanceCount,
+        highPriorityMaintenance,
+        occupancyRate,
+    });
+});
 
 module.exports = { getDashboardStats };
 
 // // tenant_manage/backend/controllers/landlord/dashboardController.js
+
+// const mongoose = require('mongoose');
+// const Property = require('../../models/Property');
+// const MaintenanceRequest = require('../../models/MaintenanceRequest');
+// const Lease = require('../../models/Lease');
+
+// // @desc    Get dashboard statistics for a landlord
+// // @route   GET /api/landlord/dashboard/stats
+// // @access  Private (Landlord Only)
+// const getDashboardStats = async (req, res) => {
+//     try {
+//         const organizationId = new mongoose.Types.ObjectId(req.user.organization);
+
+//         const [
+//             totalProperties,
+//             monthlyRentData,
+//             openMaintenanceCount,
+//             // --- THIS IS THE FIX ---
+//             // Get a list of unique property IDs that have active leases
+//             occupiedProperties
+//         ] = await Promise.all([
+//             Property.countDocuments({ organization: organizationId }),
+//             Property.aggregate([
+//                 { $match: { organization: organizationId } },
+//                 { $group: { _id: null, totalRent: { $sum: '$rentAmount' } } }
+//             ]),
+//             MaintenanceRequest.countDocuments({ organization: organizationId, status: { $ne: 'Completed' } }),
+//             // This query now finds all unique properties associated with active leases
+//             Lease.find({ organization: organizationId, status: 'active' }).distinct('property')
+//         ]);
+
+//         // The number of occupied properties is the length of the unique list
+//         const occupiedPropertyCount = occupiedProperties.length;
+
+//         // --- Calculate rate and vacant units based on the accurate count ---
+//         const occupancyRate = totalProperties > 0 
+//             ? Math.round((occupiedPropertyCount / totalProperties) * 100) 
+//             : 0;
+            
+//         const vacantUnits = totalProperties - occupiedPropertyCount;
+        
+//         const highPriorityMaintenance = await MaintenanceRequest.countDocuments({ 
+//             organization: organizationId, 
+//             status: 'Pending' // Or a dedicated 'priority' field if you add one later
+//         });
+
+//         const stats = {
+//             totalProperties,
+//             totalMonthlyRent: monthlyRentData[0]?.totalRent || 0,
+//             openMaintenanceCount,
+//             occupancyRate,
+//             vacantUnits,
+//             highPriorityMaintenance
+//         };
+
+//         res.status(200).json(stats);
+//     } catch (error) {
+//         console.error("Error fetching dashboard stats:", error);
+//         res.status(500).json({ message: 'Server Error' });
+//     }
+// };
+
+// module.exports = { getDashboardStats };
+
+
 // const mongoose = require('mongoose');
 // const Property = require('../../models/Property');
 // const MaintenanceRequest = require('../../models/MaintenanceRequest');

@@ -1,15 +1,41 @@
 const express = require('express');
 const router = express.Router();
+const { body } = require('express-validator');
 const { logOfflinePayment, getPaymentsForLease } = require('../../controllers/landlord/paymentController');
 const { protect } = require('../../middleware/authMiddleware');
-const { isLandlord } = require('../../middleware/roleMiddleware');
-// This line ensures all routes in this file are protected and for landlords only.
+const { isLandlord } = require('../../middleware/roleMiddleware'); // Import from the correct file
+
+// All routes here are for landlords only
 router.use(protect, isLandlord);
 
-// This line defines the POST route for /log-offline
-router.post('/log-offline', logOfflinePayment);
+// --- Validation rules for logging an offline payment ---
+const validateOfflinePayment = [
+    body('leaseId', 'A valid lease ID is required').isMongoId(),
+    body('amount', 'Amount must be a positive number').isFloat({ gt: 0 }),
+    body('paymentDate', 'A valid payment date is required').isISO8601().toDate(),
+    body('method', 'Payment method is required').isIn(['Cash', 'Check', 'Bank Transfer', 'Other']),
+    body('notes').optional().isString().trim().escape()
+];
+
+// Apply validation middleware to the log-offline route
+router.post('/log-offline', validateOfflinePayment, logOfflinePayment);
+
 router.get('/lease/:leaseId', getPaymentsForLease);
+
 module.exports = router;
+
+// const express = require('express');
+// const router = express.Router();
+// const { logOfflinePayment, getPaymentsForLease } = require('../../controllers/landlord/paymentController');
+// const { protect } = require('../../middleware/authMiddleware');
+// const { isLandlord } = require('../../middleware/roleMiddleware');
+// // This line ensures all routes in this file are protected and for landlords only.
+// router.use(protect, isLandlord);
+
+// // This line defines the POST route for /log-offline
+// router.post('/log-offline', logOfflinePayment);
+// router.get('/lease/:leaseId', getPaymentsForLease);
+// module.exports = router;
 
 // // tenant_manage/backend/routes/landlord/paymentRoutes.js
 

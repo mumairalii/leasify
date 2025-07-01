@@ -1,35 +1,42 @@
 const asyncHandler = require('express-async-handler');
+const mongoose = require('mongoose'); // <-- FIX #1: Import mongoose
 const Property = require('../../models/Property');
 const MaintenanceRequest = require('../../models/MaintenanceRequest');
+const Lease = require('../../models/Lease'); // <-- FIX #2: Import Lease to calculate occupancy
 
 /**
- * @desc    Get dashboard statistics for the landlord
+ * @desc    Get dashboard statistics for a landlord
  * @route   GET /api/landlord/dashboard/stats
  * @access  Private (Landlord Only)
  */
 const getDashboardStats = asyncHandler(async (req, res) => {
-    const organizationId = req.user.organization;
+    const organizationId = new mongoose.Types.ObjectId(req.user.organization);
 
     // Run all database queries in parallel for maximum efficiency
     const [
         totalProperties,
-        vacantUnits,
-        totalMonthlyRent,
+        monthlyRentData,
         openMaintenanceCount,
-        highPriorityMaintenance
+        highPriorityMaintenance,
+        occupiedProperties // Get a list of unique properties with active leases
     ] = await Promise.all([
         Property.countDocuments({ organization: organizationId }),
-        Property.countDocuments({ organization: organizationId, status: 'Vacant' }),
         Property.aggregate([
-            { $match: { organization: new mongoose.Types.ObjectId(organizationId) } },
+            { $match: { organization: organizationId } },
             { $group: { _id: null, totalRent: { $sum: '$rentAmount' } } }
         ]),
         MaintenanceRequest.countDocuments({ organization: organizationId, status: { $ne: 'Completed' } }),
-        MaintenanceRequest.countDocuments({ organization: organizationId, priority: 'High', status: { $ne: 'Completed' } })
+        MaintenanceRequest.countDocuments({ organization: organizationId, priority: 'High', status: { $ne: 'Completed' } }),
+        // --- FIX #3: This is the correct way to count occupied units ---
+        Lease.find({ organization: organizationId, status: 'active' }).distinct('property')
     ]);
 
-    const occupancyRate = totalProperties > 0 ? Math.round(((totalProperties - vacantUnits) / totalProperties) * 100) : 0;
-    const rent = totalMonthlyRent[0]?.totalRent || 0;
+    const occupiedPropertyCount = occupiedProperties.length;
+    const occupancyRate = totalProperties > 0 
+        ? Math.round((occupiedPropertyCount / totalProperties) * 100) 
+        : 0;
+    const vacantUnits = totalProperties - occupiedPropertyCount;
+    const rent = monthlyRentData[0]?.totalRent || 0;
 
     res.status(200).json({
         totalProperties,

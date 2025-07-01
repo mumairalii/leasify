@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 // --- Redux Imports ---
-// The getProperties thunk is now paginated
 import { getProperties, createProperty, updateProperty, deleteProperty, reset as resetProperties } from '../features/properties/propertySlice';
 import { getDashboardStats, reset as resetDashboard } from '../features/dashboard/dashboardSlice';
 import { getOverdueTenants, getTenants, reset as resetTenants } from '../features/tenants/tenantSlice';
@@ -31,7 +30,7 @@ import PaymentHistoryModal from '../components/modals/PaymentHistoryModal';
 import LogOfflinePaymentForm from '@/components/forms/LogOfflinePaymentForm';
 
 function LandlordDashboard() {
-    // --- State for Modals (No changes here) ---
+    // --- State for Modals ---
     const [isPropertyModalOpen, setIsPropertyModalOpen] = useState(false);
     const [isAssignLeaseModalOpen, setIsAssignLeaseModalOpen] = useState(false);
     const [isOfflineModalOpen, setIsOfflineModalOpen] = useState(false);
@@ -45,20 +44,17 @@ function LandlordDashboard() {
 
     // --- Redux State Selectors ---
     const { user } = useSelector((state) => state.auth);
-    // --- 1. GET NEW PAGINATION STATE FROM REDUX ---
-    const { properties, page, totalPages, isLoading: isPropertyLoading } = useSelector((state) => state.properties);
-    const { stats, isLoading: isDashboardLoading, isError, message } = useSelector((state) => state.dashboard);
+    const { properties, page, totalPages, isLoading: isPropertyLoading, isError: isPropertyError, message: propertyMessage } = useSelector((state) => state.properties);
+    const { stats, isLoading: isDashboardLoading, isError: isStatsError, message: statsMessage } = useSelector((state) => state.dashboard);
     const { isLoading: isLeaseLoading } = useSelector((state) => state.lease);
     const { isLoading: isPaymentLoading } = useSelector((state) => state.payments);
     const { logs, isLoading: isLogLoading } = useSelector((state) => state.logs);
     const { allTenants } = useSelector((state) => state.tenants);
 
-    // --- Main Data Fetching Effect ---
-    // The main change here is that we no longer fetch properties in this useEffect.
-    // That will be handled by a separate effect tied to the page state.
+    // --- Data Fetching Effects ---
     useEffect(() => {
-        if (isError) toast.error(message);
         if (user) {
+            dispatch(getProperties({ page: 1 }));
             dispatch(getDashboardStats());
             dispatch(getOverdueTenants());
             dispatch(getLogs());
@@ -72,31 +68,29 @@ function LandlordDashboard() {
             dispatch(resetLease());
             dispatch(resetLogs());
         };
-    }, [dispatch, user, isError, message]);
+    }, [dispatch, user]);
 
-    // --- 2. NEW EFFECT FOR FETCHING PAGINATED PROPERTIES ---
-    // This effect runs on initial load and whenever the 'page' in the Redux store changes.
+    // Effect for handling toast notifications for errors
     useEffect(() => {
-        dispatch(getProperties({ page }));
-    }, [page, dispatch]);
+        if (isPropertyError) toast.error(propertyMessage);
+        if (isStatsError) toast.error(statsMessage);
+    }, [isPropertyError, propertyMessage, isStatsError, statsMessage]);
 
-    // --- Handler for page changes ---
+    // --- Event Handlers ---
     const handlePageChange = (newPage) => {
-        // We ensure the new page is within the valid range before dispatching
-        if (newPage > 0 && newPage <= totalPages) {
+        if (newPage > 0 && newPage <= totalPages && newPage !== page) {
             dispatch(getProperties({ page: newPage }));
         }
     };
     
-    // ... (All other handler functions for modals, forms, etc. remain exactly the same)
     const handleOpenCreateModal = () => { setEditingProperty(null); setIsPropertyModalOpen(true); };
     const handleOpenEditModal = (property) => { setEditingProperty(property); setIsPropertyModalOpen(true); };
     const handleClosePropertyModal = () => { setIsPropertyModalOpen(false); setEditingProperty(null); };
-    const handleFormSubmit = async (propertyData) => { const action = editingProperty ? updateProperty({ _id: editingProperty._id, ...propertyData }) : createProperty(propertyData); try { await dispatch(action).unwrap(); toast.success(`Property ${editingProperty ? 'updated' : 'created'}!`); handleClosePropertyModal(); dispatch(getProperties({ page })); } catch (error) { toast.error(error.message || 'Failed to save property.'); }};
-    const handleDelete = (propertyId) => { if (window.confirm('Are you sure?')) { dispatch(deleteProperty(propertyId)).unwrap().then(() => { toast.success('Property deleted.'); dispatch(getProperties({ page })); }).catch((error) => toast.error(error.message || 'Failed to delete property.')); } };
+    const handleFormSubmit = async (propertyData) => { const action = editingProperty ? updateProperty({ _id: editingProperty._id, ...propertyData }) : createProperty(propertyData); try { await dispatch(action).unwrap(); toast.success(`Property ${editingProperty ? 'updated' : 'created'}!`); handleClosePropertyModal(); dispatch(getDashboardStats()); dispatch(getProperties({ page: 1 })); } catch (error) { toast.error(error.message || 'Failed to save property.'); }};
+    const handleDelete = (propertyId) => { if (window.confirm('Are you sure?')) { dispatch(deleteProperty(propertyId)).unwrap().then(() => { toast.success('Property deleted.'); dispatch(getDashboardStats()); dispatch(getProperties({ page: 1 })); }).catch((error) => toast.error(error.message || 'Failed to delete property.')); } };
     const handleOpenAssignLeaseModal = (property) => { setPropertyToAssign(property); setIsAssignLeaseModalOpen(true); };
     const handleCloseAssignLeaseModal = () => { setPropertyToAssign(null); setIsAssignLeaseModalOpen(false); };
-    const handleAssignLeaseSubmit = async (formData) => { const leaseData = { ...formData, propertyId: propertyToAssign._id }; try { await dispatch(assignLease(leaseData)).unwrap(); toast.success(`Lease assigned to ${propertyToAssign.address.street}!`); handleCloseAssignLeaseModal(); dispatch(getDashboardStats()); dispatch(getProperties({ page })); } catch (error) { toast.error(error.message || 'Failed to assign lease.'); }};
+    const handleAssignLeaseSubmit = async (formData) => { const leaseData = { ...formData, propertyId: propertyToAssign._id }; try { await dispatch(assignLease(leaseData)).unwrap(); toast.success(`Lease assigned!`); handleCloseAssignLeaseModal(); dispatch(getDashboardStats()); dispatch(getProperties({ page })); } catch (error) { toast.error(error.message || 'Failed to assign lease.'); }};
     const handleOpenOfflinePaymentModal = (tenant) => { setSelectedTenantForOffline(tenant); setIsOfflineModalOpen(true); };
     const handleCloseOfflinePaymentModal = () => { setSelectedTenantForOffline(null); setIsOfflineModalOpen(false); };
     const handleOfflinePaymentSubmit = async (formData) => { const paymentData = { ...formData, leaseId: selectedTenantForOffline.leaseId }; try { await dispatch(logOfflinePayment(paymentData)).unwrap(); toast.success('Offline payment logged!'); handleCloseOfflinePaymentModal(); dispatch(getOverdueTenants()); dispatch(getDashboardStats()); } catch (error) { toast.error(error.message || 'Failed to log payment.'); }};
@@ -107,30 +101,23 @@ function LandlordDashboard() {
     const communicationLogs = useMemo(() => logs.filter(log => log.type === 'Communication'), [logs]);
     const systemLogs = useMemo(() => logs.filter(log => log.type !== 'Communication'), [logs]);
 
-    if (isDashboardLoading || !stats) {
+    if (isDashboardLoading && !stats) {
         return <div className="flex items-center justify-center h-screen"><p>Loading Dashboard...</p></div>;
     }
 
     return (
         <div className="space-y-8 p-4 md:p-8">
             <header className="flex flex-wrap justify-between items-center gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold">Dashboard</h1>
-                    <p className="text-muted-foreground">Welcome back, {user?.name}!</p>
-                </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" asChild><Link to="/landlord/maintenance">View Maintenance</Link></Button>
-                    <Button variant="outline" onClick={handleOpenLogModal}>Log Communication</Button>
-                    <Button onClick={handleOpenCreateModal}>+ Add Property</Button>
-                </div>
+                <div><h1 className="text-2xl font-bold">Dashboard</h1><p className="text-muted-foreground">Welcome back, {user?.name}!</p></div>
+                <div className="flex gap-2"><Button variant="outline" asChild><Link to="/landlord/maintenance">View Maintenance</Link></Button><Button variant="outline" onClick={handleOpenLogModal}>Log Communication</Button><Button onClick={handleOpenCreateModal}>+ Add Property</Button></div>
             </header>
 
             <main className="grid gap-8">
                 <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    <StatCard title="Total Properties" value={stats.totalProperties} description="Managed units" icon={Building2} />
-                    <StatCard title="Total Rent (Monthly)" value={`$${stats.totalMonthlyRent.toLocaleString()}`} description="Across all properties" icon={CircleDollarSign} />
-                    <StatCard title="Open Maintenance" value={stats.openMaintenanceCount} description={`${stats.highPriorityMaintenance || 0} high priority`} icon={Wrench} color="destructive" />
-                    <StatCard title="Occupancy" value={`${stats.occupancyRate ?? 0}%`} description={`${stats.vacantUnits} vacant units`} icon={UserCheck} />
+                    <StatCard title="Total Properties" value={stats?.totalProperties || 0} description="Managed units" icon={Building2} />
+                    <StatCard title="Total Rent (Monthly)" value={`$${stats?.totalMonthlyRent.toLocaleString() || 0}`} description="Across all properties" icon={CircleDollarSign} />
+                    <StatCard title="Open Maintenance" value={stats?.openMaintenanceCount || 0} description={`${stats?.highPriorityMaintenance || 0} high priority`} icon={Wrench} color="destructive" />
+                    <StatCard title="Occupancy" value={`${stats?.occupancyRate ?? 0}%`} description={`${stats?.vacantUnits || 0} vacant units`} icon={UserCheck} />
                 </section>
                 
                 <section className="grid gap-6 lg:grid-cols-2">
@@ -146,81 +133,257 @@ function LandlordDashboard() {
 
                 <section>
                     <h2 className="text-xl font-semibold mb-4">All Properties</h2>
-                    {isPropertyLoading && properties.length === 0 ? (
-                        <p className="text-center text-muted-foreground">Loading properties...</p>
-                    ) : properties.length > 0 ? (
+                    {isPropertyLoading && properties.length === 0 ? (<p className="text-center text-muted-foreground">Loading properties...</p>) : properties.length > 0 ? (
                         <>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {properties.map((property) => (
-                                    <PropertyCard 
-                                        key={property._id}
-                                        property={property}
-                                        context="landlord"
-                                        onEdit={handleOpenEditModal}
-                                        onViewPayments={handleOpenHistoryModal}
-                                        onDelete={handleDelete}
-                                        onAssignLease={handleOpenAssignLeaseModal}
-                                    />
-                                ))}
+                                {properties.map((property) => (<PropertyCard key={property._id} property={property} context="landlord" onEdit={handleOpenEditModal} onViewPayments={handleOpenHistoryModal} onDelete={handleDelete} onAssignLease={handleOpenAssignLeaseModal}/>))}
                             </div>
-
-                            {/* --- 3. PAGINATION CONTROLS UI --- */}
                             <div className="flex items-center justify-center gap-4 mt-8">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => handlePageChange(page - 1)}
-                                    disabled={page <= 1 || isPropertyLoading}
-                                >
-                                    Previous
-                                </Button>
-                                <span className="text-sm font-medium">
-                                    Page {page} of {totalPages}
-                                </span>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => handlePageChange(page + 1)}
-                                    disabled={page >= totalPages || isPropertyLoading}
-                                >
-                                    Next
-                                </Button>
+                                <Button variant="outline" onClick={() => handlePageChange(page - 1)} disabled={page <= 1 || isPropertyLoading}>Previous</Button>
+                                <span className="text-sm font-medium">Page {page} of {totalPages}</span>
+                                <Button variant="outline" onClick={() => handlePageChange(page + 1)} disabled={page >= totalPages || isPropertyLoading}>Next</Button>
                             </div>
                         </>
                     ) : (
-                        <div className="text-center py-10 border-2 border-dashed rounded-lg mt-6">
-                            <p className="text-muted-foreground">You have not added any properties yet.</p>
-                            <Button onClick={handleOpenCreateModal} className="mt-4">Add Your First Property</Button>
-                        </div>
+                        <div className="text-center py-10 border-2 border-dashed rounded-lg mt-6"><p className="text-muted-foreground">You have not added any properties yet.</p><Button onClick={handleOpenCreateModal} className="mt-4">Add Your First Property</Button></div>
                     )}
                 </section>
             </main>
 
-            {/* --- Modals Section (No changes here) --- */}
-            <Dialog open={isPropertyModalOpen} onOpenChange={setIsPropertyModalOpen}>
-                <DialogContent><PropertyForm isEditing={!!editingProperty} initialData={editingProperty} onSubmit={handleFormSubmit} isLoading={isPropertyLoading} onCancel={handleClosePropertyModal}/></DialogContent>
-            </Dialog>
-            <Dialog open={isAssignLeaseModalOpen} onOpenChange={setIsAssignLeaseModalOpen}>
-                <DialogContent><AssignLeaseForm property={propertyToAssign} onSubmit={handleAssignLeaseSubmit} onCancel={handleCloseAssignLeaseModal} isLoading={isLeaseLoading} /></DialogContent>
-            </Dialog>
-            <Dialog open={isOfflineModalOpen} onOpenChange={setIsOfflineModalOpen}>
-                <DialogContent>
-                    <DialogHeader><DialogTitle>Log Offline Payment</DialogTitle><DialogDescription>Record a payment received outside of the app.</DialogDescription></DialogHeader>
-                    <LogOfflinePaymentForm tenant={selectedTenantForOffline} onSubmit={handleOfflinePaymentSubmit} onCancel={handleCloseOfflinePaymentModal} isLoading={isPaymentLoading} />
-                </DialogContent>
-            </Dialog>
-            <Dialog open={isLogModalOpen} onOpenChange={setIsLogModalOpen}>
-                <DialogContent>
-                    <DialogHeader><DialogTitle>Log a Communication</DialogTitle><DialogDescription>Record an offline interaction.</DialogDescription></DialogHeader>
-                    <LogCommunicationForm onSubmit={handleLogSubmit} onCancel={handleCloseLogModal} isLoading={isLogLoading} tenants={allTenants} properties={properties} />
-                </DialogContent>
-            </Dialog>
-            <Dialog open={isHistoryModalOpen} onOpenChange={setIsHistoryModalOpen}>
-                <DialogContent className="sm:max-w-lg"><PaymentHistoryModal leaseId={selectedLeaseId} /></DialogContent>
-            </Dialog>
+            <Dialog open={isPropertyModalOpen} onOpenChange={setIsPropertyModalOpen}><DialogContent><PropertyForm isEditing={!!editingProperty} initialData={editingProperty} onSubmit={handleFormSubmit} isLoading={isPropertyLoading} onCancel={handleClosePropertyModal}/></DialogContent></Dialog>
+            <Dialog open={isAssignLeaseModalOpen} onOpenChange={setIsAssignLeaseModalOpen}><DialogContent><AssignLeaseForm property={propertyToAssign} onSubmit={handleAssignLeaseSubmit} onCancel={handleCloseAssignLeaseModal} isLoading={isLeaseLoading} /></DialogContent></Dialog>
+            <Dialog open={isOfflineModalOpen} onOpenChange={setIsOfflineModalOpen}><DialogContent><DialogHeader><DialogTitle>Log Offline Payment</DialogTitle><DialogDescription>Record a payment received outside of the app.</DialogDescription></DialogHeader><LogOfflinePaymentForm tenant={selectedTenantForOffline} onSubmit={handleOfflinePaymentSubmit} onCancel={handleCloseOfflinePaymentModal} isLoading={isPaymentLoading} /></DialogContent></Dialog>
+            <Dialog open={isLogModalOpen} onOpenChange={setIsLogModalOpen}><DialogContent><DialogHeader><DialogTitle>Log a Communication</DialogTitle><DialogDescription>Record an offline interaction.</DialogDescription></DialogHeader><LogCommunicationForm onSubmit={handleLogSubmit} onCancel={handleCloseLogModal} isLoading={isLogLoading} tenants={allTenants} properties={properties} /></DialogContent></Dialog>
+            <Dialog open={isHistoryModalOpen} onOpenChange={setIsHistoryModalOpen}><DialogContent className="sm:max-w-lg"><PaymentHistoryModal leaseId={selectedLeaseId} /></DialogContent></Dialog>
         </div>
     );
 }
 
 export default LandlordDashboard;
+
+// import React, { useState, useEffect, useMemo } from 'react';
+// import { useSelector, useDispatch } from 'react-redux';
+// import { Link } from 'react-router-dom';
+// import { toast } from 'react-toastify';
+
+// // --- Redux Imports ---
+// // The getProperties thunk is now paginated
+// import { getProperties, createProperty, updateProperty, deleteProperty, reset as resetProperties } from '../features/properties/propertySlice';
+// import { getDashboardStats, reset as resetDashboard } from '../features/dashboard/dashboardSlice';
+// import { getOverdueTenants, getTenants, reset as resetTenants } from '../features/tenants/tenantSlice';
+// import { logOfflinePayment, reset as resetPayments } from '../features/payments/paymentSlice';
+// import { assignLease, reset as resetLease } from '../features/lease/leaseSlice';
+// import { getLogs, createLog, reset as resetLogs } from '../features/logs/logSlice';
+
+// // --- UI & Icon Imports ---
+// import { Button } from "@/components/ui/button";
+// import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+// import { Building2, Wrench, CircleDollarSign, UserCheck } from "lucide-react";
+
+// // --- Custom Component Imports ---
+// import StatCard from '@/components/dashboard/StatCard';
+// import PropertyCard from '@/components/dashboard/PropertyCard';
+// import PropertyForm from '@/components/forms/PropertyForm';
+// import OverdueTenants from '@/components/dashboard/OverdueTenants';
+// import MaintenanceQueue from '@/components/dashboard/MaintenanceQueue';
+// import TaskList from '@/components/dashboard/TaskList';
+// import ActivityFeed from '@/components/dashboard/ActivityFeed';
+// import AssignLeaseForm from '@/components/forms/AssignLeaseForm';
+// import LogCommunicationForm from '@/components/forms/LogCommunicatonForm';
+// import PaymentHistoryModal from '../components/modals/PaymentHistoryModal';
+// import LogOfflinePaymentForm from '@/components/forms/LogOfflinePaymentForm';
+
+// function LandlordDashboard() {
+//     // --- State for Modals (No changes here) ---
+//     const [isPropertyModalOpen, setIsPropertyModalOpen] = useState(false);
+//     const [isAssignLeaseModalOpen, setIsAssignLeaseModalOpen] = useState(false);
+//     const [isOfflineModalOpen, setIsOfflineModalOpen] = useState(false);
+//     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+//     const [selectedLeaseId, setSelectedLeaseId] = useState(null);
+//     const [editingProperty, setEditingProperty] = useState(null);
+//     const [propertyToAssign, setPropertyToAssign] = useState(null);
+//     const [selectedTenantForOffline, setSelectedTenantForOffline] = useState(null);
+//     const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+//     const dispatch = useDispatch();
+
+//     // --- Redux State Selectors ---
+//     const { user } = useSelector((state) => state.auth);
+//     // --- 1. GET NEW PAGINATION STATE FROM REDUX ---
+//     const { properties, page, totalPages, isLoading: isPropertyLoading } = useSelector((state) => state.properties);
+//     const { stats, isLoading: isDashboardLoading, isError, message } = useSelector((state) => state.dashboard);
+//     const { isLoading: isLeaseLoading } = useSelector((state) => state.lease);
+//     const { isLoading: isPaymentLoading } = useSelector((state) => state.payments);
+//     const { logs, isLoading: isLogLoading } = useSelector((state) => state.logs);
+//     const { allTenants } = useSelector((state) => state.tenants);
+
+//     // --- Main Data Fetching Effect ---
+//     // The main change here is that we no longer fetch properties in this useEffect.
+//     // That will be handled by a separate effect tied to the page state.
+//     useEffect(() => {
+//         if (isError) toast.error(message);
+//         if (user) {
+//             dispatch(getDashboardStats());
+//             dispatch(getOverdueTenants());
+//             dispatch(getLogs());
+//             dispatch(getTenants());
+//         }
+//         return () => {
+//             dispatch(resetProperties());
+//             dispatch(resetDashboard());
+//             dispatch(resetPayments());
+//             dispatch(resetTenants());
+//             dispatch(resetLease());
+//             dispatch(resetLogs());
+//         };
+//     }, [dispatch, user, isError, message]);
+
+//     // --- 2. NEW EFFECT FOR FETCHING PAGINATED PROPERTIES ---
+//     // This effect runs on initial load and whenever the 'page' in the Redux store changes.
+//     useEffect(() => {
+//         dispatch(getProperties({ page }));
+//     }, [page, dispatch]);
+
+//     // --- Handler for page changes ---
+//     const handlePageChange = (newPage) => {
+//         // We ensure the new page is within the valid range before dispatching
+//         if (newPage > 0 && newPage <= totalPages) {
+//             dispatch(getProperties({ page: newPage }));
+//         }
+//     };
+    
+//     // ... (All other handler functions for modals, forms, etc. remain exactly the same)
+//     const handleOpenCreateModal = () => { setEditingProperty(null); setIsPropertyModalOpen(true); };
+//     const handleOpenEditModal = (property) => { setEditingProperty(property); setIsPropertyModalOpen(true); };
+//     const handleClosePropertyModal = () => { setIsPropertyModalOpen(false); setEditingProperty(null); };
+//     const handleFormSubmit = async (propertyData) => { const action = editingProperty ? updateProperty({ _id: editingProperty._id, ...propertyData }) : createProperty(propertyData); try { await dispatch(action).unwrap(); toast.success(`Property ${editingProperty ? 'updated' : 'created'}!`); handleClosePropertyModal(); dispatch(getProperties({ page })); } catch (error) { toast.error(error.message || 'Failed to save property.'); }};
+//     const handleDelete = (propertyId) => { if (window.confirm('Are you sure?')) { dispatch(deleteProperty(propertyId)).unwrap().then(() => { toast.success('Property deleted.'); dispatch(getProperties({ page })); }).catch((error) => toast.error(error.message || 'Failed to delete property.')); } };
+//     const handleOpenAssignLeaseModal = (property) => { setPropertyToAssign(property); setIsAssignLeaseModalOpen(true); };
+//     const handleCloseAssignLeaseModal = () => { setPropertyToAssign(null); setIsAssignLeaseModalOpen(false); };
+//     const handleAssignLeaseSubmit = async (formData) => { const leaseData = { ...formData, propertyId: propertyToAssign._id }; try { await dispatch(assignLease(leaseData)).unwrap(); toast.success(`Lease assigned to ${propertyToAssign.address.street}!`); handleCloseAssignLeaseModal(); dispatch(getDashboardStats()); dispatch(getProperties({ page })); } catch (error) { toast.error(error.message || 'Failed to assign lease.'); }};
+//     const handleOpenOfflinePaymentModal = (tenant) => { setSelectedTenantForOffline(tenant); setIsOfflineModalOpen(true); };
+//     const handleCloseOfflinePaymentModal = () => { setSelectedTenantForOffline(null); setIsOfflineModalOpen(false); };
+//     const handleOfflinePaymentSubmit = async (formData) => { const paymentData = { ...formData, leaseId: selectedTenantForOffline.leaseId }; try { await dispatch(logOfflinePayment(paymentData)).unwrap(); toast.success('Offline payment logged!'); handleCloseOfflinePaymentModal(); dispatch(getOverdueTenants()); dispatch(getDashboardStats()); } catch (error) { toast.error(error.message || 'Failed to log payment.'); }};
+//     const handleOpenLogModal = () => setIsLogModalOpen(true);
+//     const handleCloseLogModal = () => setIsLogModalOpen(false);
+//     const handleLogSubmit = async (logData) => { try { await dispatch(createLog(logData)).unwrap(); toast.success('Communication logged!'); handleCloseLogModal(); } catch (error) { toast.error(error.message || 'Failed to save log.'); }};
+//     const handleOpenHistoryModal = (leaseId) => { if (leaseId) { setSelectedLeaseId(leaseId); setIsHistoryModalOpen(true); }};
+//     const communicationLogs = useMemo(() => logs.filter(log => log.type === 'Communication'), [logs]);
+//     const systemLogs = useMemo(() => logs.filter(log => log.type !== 'Communication'), [logs]);
+
+//     if (isDashboardLoading || !stats) {
+//         return <div className="flex items-center justify-center h-screen"><p>Loading Dashboard...</p></div>;
+//     }
+
+//     return (
+//         <div className="space-y-8 p-4 md:p-8">
+//             <header className="flex flex-wrap justify-between items-center gap-4">
+//                 <div>
+//                     <h1 className="text-2xl font-bold">Dashboard</h1>
+//                     <p className="text-muted-foreground">Welcome back, {user?.name}!</p>
+//                 </div>
+//                 <div className="flex gap-2">
+//                     <Button variant="outline" asChild><Link to="/landlord/maintenance">View Maintenance</Link></Button>
+//                     <Button variant="outline" onClick={handleOpenLogModal}>Log Communication</Button>
+//                     <Button onClick={handleOpenCreateModal}>+ Add Property</Button>
+//                 </div>
+//             </header>
+
+//             <main className="grid gap-8">
+//                 <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+//                     <StatCard title="Total Properties" value={stats.totalProperties} description="Managed units" icon={Building2} />
+//                     <StatCard title="Total Rent (Monthly)" value={`$${stats.totalMonthlyRent.toLocaleString()}`} description="Across all properties" icon={CircleDollarSign} />
+//                     <StatCard title="Open Maintenance" value={stats.openMaintenanceCount} description={`${stats.highPriorityMaintenance || 0} high priority`} icon={Wrench} color="destructive" />
+//                     <StatCard title="Occupancy" value={`${stats.occupancyRate ?? 0}%`} description={`${stats.vacantUnits} vacant units`} icon={UserCheck} />
+//                 </section>
+                
+//                 <section className="grid gap-6 lg:grid-cols-2">
+//                     <OverdueTenants onLogPayment={handleOpenOfflinePaymentModal} />
+//                     <MaintenanceQueue />
+//                 </section>
+                
+//                 <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+//                     <ActivityFeed title="Recent Communications" items={communicationLogs} />
+//                     <TaskList />
+//                     <ActivityFeed title="System Activity Log" items={systemLogs} />
+//                 </section>
+
+//                 <section>
+//                     <h2 className="text-xl font-semibold mb-4">All Properties</h2>
+//                     {isPropertyLoading && properties.length === 0 ? (
+//                         <p className="text-center text-muted-foreground">Loading properties...</p>
+//                     ) : properties.length > 0 ? (
+//                         <>
+//                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+//                                 {properties.map((property) => (
+//                                     <PropertyCard 
+//                                         key={property._id}
+//                                         property={property}
+//                                         context="landlord"
+//                                         onEdit={handleOpenEditModal}
+//                                         onViewPayments={handleOpenHistoryModal}
+//                                         onDelete={handleDelete}
+//                                         onAssignLease={handleOpenAssignLeaseModal}
+//                                     />
+//                                 ))}
+//                             </div>
+
+//                             {/* --- 3. PAGINATION CONTROLS UI --- */}
+//                             <div className="flex items-center justify-center gap-4 mt-8">
+//                                 <Button
+//                                     variant="outline"
+//                                     onClick={() => handlePageChange(page - 1)}
+//                                     disabled={page <= 1 || isPropertyLoading}
+//                                 >
+//                                     Previous
+//                                 </Button>
+//                                 <span className="text-sm font-medium">
+//                                     Page {page} of {totalPages}
+//                                 </span>
+//                                 <Button
+//                                     variant="outline"
+//                                     onClick={() => handlePageChange(page + 1)}
+//                                     disabled={page >= totalPages || isPropertyLoading}
+//                                 >
+//                                     Next
+//                                 </Button>
+//                             </div>
+//                         </>
+//                     ) : (
+//                         <div className="text-center py-10 border-2 border-dashed rounded-lg mt-6">
+//                             <p className="text-muted-foreground">You have not added any properties yet.</p>
+//                             <Button onClick={handleOpenCreateModal} className="mt-4">Add Your First Property</Button>
+//                         </div>
+//                     )}
+//                 </section>
+//             </main>
+
+//             {/* --- Modals Section (No changes here) --- */}
+//             <Dialog open={isPropertyModalOpen} onOpenChange={setIsPropertyModalOpen}>
+//                 <DialogContent><PropertyForm isEditing={!!editingProperty} initialData={editingProperty} onSubmit={handleFormSubmit} isLoading={isPropertyLoading} onCancel={handleClosePropertyModal}/></DialogContent>
+//             </Dialog>
+//             <Dialog open={isAssignLeaseModalOpen} onOpenChange={setIsAssignLeaseModalOpen}>
+//                 <DialogContent><AssignLeaseForm property={propertyToAssign} onSubmit={handleAssignLeaseSubmit} onCancel={handleCloseAssignLeaseModal} isLoading={isLeaseLoading} /></DialogContent>
+//             </Dialog>
+//             <Dialog open={isOfflineModalOpen} onOpenChange={setIsOfflineModalOpen}>
+//                 <DialogContent>
+//                     <DialogHeader><DialogTitle>Log Offline Payment</DialogTitle><DialogDescription>Record a payment received outside of the app.</DialogDescription></DialogHeader>
+//                     <LogOfflinePaymentForm tenant={selectedTenantForOffline} onSubmit={handleOfflinePaymentSubmit} onCancel={handleCloseOfflinePaymentModal} isLoading={isPaymentLoading} />
+//                 </DialogContent>
+//             </Dialog>
+//             <Dialog open={isLogModalOpen} onOpenChange={setIsLogModalOpen}>
+//                 <DialogContent>
+//                     <DialogHeader><DialogTitle>Log a Communication</DialogTitle><DialogDescription>Record an offline interaction.</DialogDescription></DialogHeader>
+//                     <LogCommunicationForm onSubmit={handleLogSubmit} onCancel={handleCloseLogModal} isLoading={isLogLoading} tenants={allTenants} properties={properties} />
+//                 </DialogContent>
+//             </Dialog>
+//             <Dialog open={isHistoryModalOpen} onOpenChange={setIsHistoryModalOpen}>
+//                 <DialogContent className="sm:max-w-lg"><PaymentHistoryModal leaseId={selectedLeaseId} /></DialogContent>
+//             </Dialog>
+//         </div>
+//     );
+// }
+
+// export default LandlordDashboard;
 // import React, { useState, useEffect, useMemo  } from 'react';
 // import { useSelector, useDispatch } from 'react-redux';
 // import { Link } from 'react-router-dom';

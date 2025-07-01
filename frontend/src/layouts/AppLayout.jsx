@@ -86,7 +86,7 @@ function AppLayout() {
                         {!sidebarCollapsed && (
                             <Link to="/" className="flex items-center gap-3 font-semibold">
                                 <Building2 className="h-6 w-6 text-primary" />
-                                <span className="text-xl">PropMan Hub</span>
+                                <span className="text-xl">Leaseify</span>
                             </Link>
                         )}
                         {sidebarCollapsed && (

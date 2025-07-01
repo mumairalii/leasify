@@ -189,6 +189,9 @@ const tenantPaymentRoutes = require('./routes/tenant/paymentRoutes');
 // Controller import for webhook
 const { handleStripeWebhook } = require('./controllers/landlord/paymentController');
 
+const { notFound, errorHandler } = require('./middleware/errorMiddleware');
+
+
 
 // --- APP INITIALIZATION ---
 const app = express();
@@ -259,6 +262,10 @@ app.use('/api/tenant/lease', tenantLeaseRoutes);
 app.use('/api/tenant/maintenance-requests', tenantMaintenanceRoutes);
 app.use('/api/tenant/payments', tenantPaymentRoutes);
 
+app.use(notFound);    // This will catch any request that doesn't match a route
+app.use(errorHandler); // This is our main error handler
+
+
 
 // --- DATABASE CONNECTION & SERVER START ---
 const DB_URI = process.env.MONGO_URI;
@@ -270,9 +277,12 @@ if (!DB_URI) {
 mongoose.connect(DB_URI)
     .then(() => {
         console.log('SUCCESS: MongoDB connection established successfully.');
-        app.listen(PORT, () => console.log(`INFO: Server is operational and listening on port ${PORT}`));
+        // app.listen(PORT, () => console.log(`INFO: Server is operational and listening on port ${PORT}`));
     })
     .catch((error) => {
         console.error('ERROR: MongoDB connection failed.', error.message);
         process.exit(1);
     });
+
+
+module.exports = app;    

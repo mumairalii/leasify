@@ -1,81 +1,223 @@
-import React from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import React from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Building2 } from "lucide-react";
+// Import new icons
+import { MoreHorizontal, Building2, BedDouble, Bath } from "lucide-react";
 
-// The component now accepts an 'onViewPayments' prop for the landlord context
-const PropertyCard = ({ property, context = 'public', onEdit, onDelete, onViewPayments }) => {
-  const isLandlordView = context === 'landlord';
+const PropertyCard = ({
+  property,
+  context = "public",
+  onEdit,
+  onDelete,
+  onAssignLease,
+  onViewPayments,
+}) => {
+  const isLandlordView = context === "landlord";
 
   return (
-    <Card className="flex flex-col overflow-hidden transition-all hover:shadow-md h-full">
-      <div className="h-40 bg-muted/40">
+    <Card className="flex flex-col overflow-hidden transition-all hover:shadow-lg h-full border-2 border-transparent hover:border-primary/50">
+      {/* Image section */}
+      <div className="h-48 bg-muted/40 relative">
         {property.imageUrl ? (
-          <img 
-            src={property.imageUrl} 
-            alt={property.address.street} 
-            className="h-full w-full object-cover" 
+          <img
+            src={property.imageUrl}
+            alt={property.address.street}
+            className="h-full w-full object-cover"
           />
         ) : (
-          <div className="h-full w-full flex flex-col items-center justify-center text-muted-foreground">
-            <Building2 className="h-10 w-10 mb-2" />
+          <div className="h-full w-full flex flex-col items-center justify-center text-muted-foreground bg-gradient-to-br from-muted/30 to-muted/20">
+            <Building2 className="h-10 w-10 mb-2 opacity-60" />
             <span>No Image</span>
           </div>
         )}
+        <div className="absolute top-2 right-2">
+          <Badge
+            variant={property.status === "Rented" ? "default" : "secondary"}
+            className="bg-white/80 backdrop-blur-sm text-black hover:bg-white"
+          >
+            {property.status || "Vacant"}
+          </Badge>
+        </div>
       </div>
 
-      <div className="flex flex-col flex-grow p-4">
+      {/* Content wrapper */}
+      <div className="flex flex-col flex-grow p-4 space-y-4">
         <CardHeader className="flex-row gap-4 items-start p-0">
           <div className="flex-grow">
-            <CardTitle>{property.address.street}</CardTitle>
-            <CardDescription>{property.address.city}, {property.address.state}</CardDescription>
+            <CardTitle className="text-lg leading-tight">
+              {property.address.street}
+            </CardTitle>
+            <CardDescription>
+              {property.address.city}, {property.address.state}
+            </CardDescription>
           </div>
-          {/* The action menu only shows in the 'landlord' context */}
           {isLandlordView && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="flex-shrink-0 w-8 h-8"><MoreHorizontal className="h-4 w-4" /></Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="flex-shrink-0 w-8 h-8"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onClick={() => onViewPayments(property.activeLeaseId)}
-                  disabled={property.status !== 'Rented'}
+                  disabled={property.status !== "Rented"}
                   className="cursor-pointer"
                 >
                   View Payments
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onAssignLease(property)} className="cursor-pointer">
-                  Assign Lease Manually
+                <DropdownMenuItem
+                  onClick={() => onAssignLease(property)}
+                  className="cursor-pointer"
+                >
+                  Assign Lease
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => onEdit(property)} className="cursor-pointer">
+                <DropdownMenuItem
+                  onClick={() => onEdit(property)}
+                  className="cursor-pointer"
+                >
                   Edit Details
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onDelete(property._id)} className="text-destructive focus:text-destructive cursor-pointer">
+                <DropdownMenuItem
+                  onClick={() => onDelete(property._id)}
+                  className="text-destructive focus:text-destructive cursor-pointer"
+                >
                   Delete Property
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
         </CardHeader>
-        
-        <CardContent className="flex-grow p-0 pt-4">
-          <div className="text-2xl font-bold text-primary">${property.rentAmount.toLocaleString()}/month</div>
-        </CardContent>
-      </div>
 
-      <CardFooter className="p-4 pt-0">
-        <Badge variant={property.status === 'Rented' ? 'success' : 'secondary'}>
-            {property.status || 'Vacant'}
-        </Badge>
-      </CardFooter>
+        <CardContent className="flex-grow p-0">
+          <div className="flex items-center text-sm text-muted-foreground space-x-4">
+            {property.propertyType && <span>{property.propertyType}</span>}
+            {property.bedrooms > 0 && (
+              <span className="flex items-center gap-1.5">
+                <BedDouble className="h-4 w-4" /> {property.bedrooms}
+              </span>
+            )}
+            {property.bathrooms > 0 && (
+              <span className="flex items-center gap-1.5">
+                <Bath className="h-4 w-4" /> {property.bathrooms}
+              </span>
+            )}
+          </div>
+        </CardContent>
+
+        <CardFooter className="p-0 pt-4">
+          <div className="text-2xl font-bold text-primary">
+            ${property.rentAmount.toLocaleString()}
+            <span className="text-sm font-normal text-muted-foreground">
+              /month
+            </span>
+          </div>
+        </CardFooter>
+      </div>
     </Card>
   );
 };
 
 export default PropertyCard;
+
+// import React from 'react';
+// import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+// import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+// import { Badge } from "@/components/ui/badge";
+// import { Button } from "@/components/ui/button";
+// import { MoreHorizontal, Building2 } from "lucide-react";
+
+// // The component now accepts an 'onViewPayments' prop for the landlord context
+// const PropertyCard = ({ property, context = 'public', onEdit, onDelete, onViewPayments }) => {
+//   const isLandlordView = context === 'landlord';
+
+//   return (
+//     <Card className="flex flex-col overflow-hidden transition-all hover:shadow-md h-full">
+//       <div className="h-40 bg-muted/40">
+//         {property.imageUrl ? (
+//           <img
+//             src={property.imageUrl}
+//             alt={property.address.street}
+//             className="h-full w-full object-cover"
+//           />
+//         ) : (
+//           <div className="h-full w-full flex flex-col items-center justify-center text-muted-foreground">
+//             <Building2 className="h-10 w-10 mb-2" />
+//             <span>No Image</span>
+//           </div>
+//         )}
+//       </div>
+
+//       <div className="flex flex-col flex-grow p-4">
+//         <CardHeader className="flex-row gap-4 items-start p-0">
+//           <div className="flex-grow">
+//             <CardTitle>{property.address.street}</CardTitle>
+//             <CardDescription>{property.address.city}, {property.address.state}</CardDescription>
+//           </div>
+//           {/* The action menu only shows in the 'landlord' context */}
+//           {isLandlordView && (
+//             <DropdownMenu>
+//               <DropdownMenuTrigger asChild>
+//                 <Button variant="ghost" size="icon" className="flex-shrink-0 w-8 h-8"><MoreHorizontal className="h-4 w-4" /></Button>
+//               </DropdownMenuTrigger>
+//               <DropdownMenuContent align="end">
+//                 <DropdownMenuItem
+//                   onClick={() => onViewPayments(property.activeLeaseId)}
+//                   disabled={property.status !== 'Rented'}
+//                   className="cursor-pointer"
+//                 >
+//                   View Payments
+//                 </DropdownMenuItem>
+//                 <DropdownMenuItem onClick={() => onAssignLease(property)} className="cursor-pointer">
+//                   Assign Lease Manually
+//                 </DropdownMenuItem>
+//                 <DropdownMenuSeparator />
+//                 <DropdownMenuItem onClick={() => onEdit(property)} className="cursor-pointer">
+//                   Edit Details
+//                 </DropdownMenuItem>
+//                 <DropdownMenuItem onClick={() => onDelete(property._id)} className="text-destructive focus:text-destructive cursor-pointer">
+//                   Delete Property
+//                 </DropdownMenuItem>
+//               </DropdownMenuContent>
+//             </DropdownMenu>
+//           )}
+//         </CardHeader>
+
+//         <CardContent className="flex-grow p-0 pt-4">
+//           <div className="text-2xl font-bold text-primary">${property.rentAmount.toLocaleString()}/month</div>
+//         </CardContent>
+//       </div>
+
+//       <CardFooter className="p-4 pt-0">
+//         <Badge variant={property.status === 'Rented' ? 'success' : 'secondary'}>
+//             {property.status || 'Vacant'}
+//         </Badge>
+//       </CardFooter>
+//     </Card>
+//   );
+// };
+
+// export default PropertyCard;
 // // src/components/dashboard/PropertyCard.jsx
 
 // import React from 'react';
@@ -121,7 +263,7 @@ export default PropertyCard;
 //             </DropdownMenu>
 //           )}
 //         </CardHeader>
-        
+
 //         <CardContent className="flex-grow p-0 pt-4">
 //           <div className="text-2xl font-bold text-primary">${property.rentAmount.toLocaleString()}/month</div>
 //         </CardContent>
@@ -153,10 +295,10 @@ export default PropertyCard;
 //       {/* Image section */}
 //       <div className="h-48 w-full relative overflow-hidden bg-muted/40">
 //         {property.imageUrl ? (
-//           <img 
-//             src={property.imageUrl} 
-//             alt={`Image of ${property.address.street}`} 
-//             className="absolute inset-0 w-full h-full object-cover" 
+//           <img
+//             src={property.imageUrl}
+//             alt={`Image of ${property.address.street}`}
+//             className="absolute inset-0 w-full h-full object-cover"
 //           />
 //         ) : (
 //           <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-muted-foreground bg-gradient-to-br from-muted/50 to-muted/30">
@@ -181,12 +323,12 @@ export default PropertyCard;
 //               </span>
 //             </div>
 //           </div>
-          
+
 //           <DropdownMenu>
 //             <DropdownMenuTrigger asChild>
-//               <Button 
-//                 variant="ghost" 
-//                 size="sm" 
+//               <Button
+//                 variant="ghost"
+//                 size="sm"
 //                 className="h-8 w-8 p-0 text-muted-foreground hover:text-primary"
 //               >
 //                 <MoreHorizontal className="h-4 w-4" />
@@ -198,8 +340,8 @@ export default PropertyCard;
 //               <DropdownMenuItem onClick={() => onEdit(property)} className="cursor-pointer">
 //                 Edit Details
 //               </DropdownMenuItem>
-//               <DropdownMenuItem 
-//                 onClick={() => onDelete(property._id)} 
+//               <DropdownMenuItem
+//                 onClick={() => onDelete(property._id)}
 //                 className="cursor-pointer text-destructive focus:text-destructive"
 //               >
 //                 Delete Property
@@ -222,7 +364,7 @@ export default PropertyCard;
 
 //       {/* Footer with status */}
 //       <CardFooter className="px-6 pb-6 pt-0">
-//         <Badge 
+//         <Badge
 //           variant={property.status === 'Rented' ? 'success' : property.status === 'Vacant' ? 'secondary' : 'outline'}
 //           className="text-sm px-3 py-1"
 //         >
@@ -247,10 +389,10 @@ export default PropertyCard;
 //       {/* Image section */}
 //       <div className="h-48 bg-muted/40 relative">
 //         {property.imageUrl ? (
-//           <img 
-//             src={property.imageUrl} 
-//             alt={`Image of ${property.address.street}`} 
-//             className="h-full w-full object-cover" 
+//           <img
+//             src={property.imageUrl}
+//             alt={`Image of ${property.address.street}`}
+//             className="h-full w-full object-cover"
 //           />
 //         ) : (
 //           <div className="h-full w-full flex flex-col items-center justify-center text-muted-foreground bg-gradient-to-br from-muted/50 to-muted/30">
@@ -275,12 +417,12 @@ export default PropertyCard;
 //               </span>
 //             </div>
 //           </div>
-          
+
 //           <DropdownMenu>
 //             <DropdownMenuTrigger asChild>
-//               <Button 
-//                 variant="ghost" 
-//                 size="sm" 
+//               <Button
+//                 variant="ghost"
+//                 size="sm"
 //                 className="h-8 w-8 p-0 text-muted-foreground hover:text-primary"
 //               >
 //                 <MoreHorizontal className="h-4 w-4" />
@@ -295,8 +437,8 @@ export default PropertyCard;
 //               <DropdownMenuItem onClick={() => onEdit(property)} className="cursor-pointer">
 //                 Edit Details
 //               </DropdownMenuItem>
-//               <DropdownMenuItem 
-//                 onClick={() => onDelete(property._id)} 
+//               <DropdownMenuItem
+//                 onClick={() => onDelete(property._id)}
 //                 className="cursor-pointer text-destructive focus:text-destructive"
 //               >
 //                 Delete Property
@@ -314,7 +456,7 @@ export default PropertyCard;
 //               <span className="text-sm font-normal text-muted-foreground ml-1">/month</span>
 //             </span>
 //           </div>
-          
+
 //           {/* Additional details could go here */}
 //           {/* <div className="flex items-center text-sm text-muted-foreground">
 //             <Bed className="h-4 w-4 mr-2" />
@@ -325,7 +467,7 @@ export default PropertyCard;
 
 //       {/* Footer with status */}
 //       <CardFooter className="px-6 pb-6 pt-0">
-//         <Badge 
+//         <Badge
 //           variant={property.status === 'Rented' ? 'success' : property.status === 'Vacant' ? 'secondary' : 'outline'}
 //           className="text-sm px-3 py-1.5"
 //         >
@@ -351,14 +493,14 @@ export default PropertyCard;
 //   return (
 //     // We keep the main card as a flex container
 //     <Card className="flex flex-col overflow-hidden transition-all hover:shadow-md">
-      
+
 //       {/* The image section remains at the top */}
 //       <div className="h-40 bg-muted/40">
 //         {property.imageUrl ? (
-//           <img 
-//             src={property.imageUrl} 
-//             alt={`Image of ${property.address.street}`} 
-//             className="h-full w-full object-cover" 
+//           <img
+//             src={property.imageUrl}
+//             alt={`Image of ${property.address.street}`}
+//             className="h-full w-full object-cover"
 //           />
 //         ) : (
 //           <div className="h-full w-full flex flex-col items-center justify-center text-muted-foreground">
@@ -396,7 +538,7 @@ export default PropertyCard;
 //             </DropdownMenuContent>
 //           </DropdownMenu>
 //         </CardHeader>
-        
+
 //         {/* CardContent will now grow inside this new div */}
 //         <CardContent className="flex-grow p-0 pt-4">
 //           <div className="text-2xl font-bold text-primary">${property.rentAmount.toLocaleString()}/month</div>
@@ -525,7 +667,6 @@ export default PropertyCard;
 // };
 
 // export default PropertyCard;
-
 
 // // src/components/dashboard/PropertyCard.jsx
 

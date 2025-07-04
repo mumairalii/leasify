@@ -1,96 +1,357 @@
-import React, { useState, useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { useNavigate, Navigate, Link } from 'react-router-dom';
-import { register, reset } from '../features/auth/authSlice';
-import { toast } from 'react-toastify';
+import React, { useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { useNavigate, Navigate, Link } from "react-router-dom";
+import { register, reset } from "../features/auth/authSlice";
+import { toast } from "react-toastify";
 
+// UI & Icon Imports
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Building2 } from "lucide-react";
+import { ThemeToggleButton } from "@/components/ThemeToggleButton";
 
 function RegisterPage() {
-    const [formData, setFormData] = useState({ name: '', email: '', password: '', password2: '', role: 'tenant' });
-    const { name, email, password, password2, role } = formData;
-    
-    const navigate = useNavigate();
-    const dispatch = useDispatch();
-    const { user, isLoading, isError, message } = useSelector((state) => state.auth);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    password2: "",
+    role: "tenant",
+  });
+  const { name, email, password, password2, role } = formData;
 
-    useEffect(() => {
-        if (isError) {
-            toast.error(message);
-            dispatch(reset());
-        }
-    }, [isError, message, dispatch]);
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { user, isLoading, isError, message } = useSelector(
+    (state) => state.auth
+  );
 
-    const onChange = (e) => {
-        setFormData((prevState) => ({ ...prevState, [e.target.name]: e.target.value }));
-    };
-
-    const handleRoleChange = (value) => {
-        setFormData((prevState) => ({ ...prevState, role: value }));
-    };
-
-    const onSubmit = (e) => {
-        e.preventDefault();
-        if (password !== password2) {
-            toast.error('Passwords do not match');
-            return;
-        }
-        dispatch(register({ name, email, password, role }));
-    };
-
-    if (user) {
-        if (user.role === 'landlord') return <Navigate to='/landlord/dashboard' replace />;
-        if (user.role === 'tenant') return <Navigate to='/tenant/dashboard' replace />;
+  useEffect(() => {
+    if (isError) {
+      toast.error(message);
     }
+    return () => {
+      dispatch(reset());
+    };
+  }, [isError, message, dispatch]);
 
-    return (
-        <div className="w-full lg:grid lg:min-h-screen lg:grid-cols-2">
-            {/* Left Branding Panel */}
-            <div className="hidden bg-gray-100 lg:flex lg:flex-col lg:items-center lg:justify-center dark:bg-gray-800 p-10 text-center">
-                <div className="mx-auto w-[350px]">
-                    <h1 className="text-5xl font-bold text-blue-600">Leasify</h1>
-                    <p className="mt-4 text-xl text-gray-600 dark:text-gray-300">
-                        Join our platform to streamline your rental experience.
-                    </p>
-                </div>
-            </div>
-            {/* Right Form Panel */}
-            <div className="flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-                <div className="mx-auto grid w-[350px] gap-6">
-                    <div className="grid gap-2 text-center">
-                        <h1 className="text-3xl font-bold">Create an Account</h1>
-                        <p className="text-balance text-muted-foreground">Enter your information to get started.</p>
-                    </div>
-                    <form onSubmit={onSubmit}>
-                        <div className="grid gap-4">
-                            <div className="grid gap-2"><Label htmlFor="name">Full Name</Label><Input id="name" name="name" placeholder="John Doe" value={name} onChange={onChange} required /></div>
-                            <div className="grid gap-2"><Label htmlFor="email">Email</Label><Input id="email" name="email" type="email" placeholder="name@example.com" value={email} onChange={onChange} required /></div>
-                            <div className="grid gap-2"><Label htmlFor="password">Password</Label><Input id="password" name="password" type="password" value={password} onChange={onChange} required /></div>
-                            <div className="grid gap-2"><Label htmlFor="password2">Confirm Password</Label><Input id="password2" name="password2" type="password" value={password2} onChange={onChange} required /></div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="role">I am a...</Label>
-                                <Select value={role} onValueChange={handleRoleChange} name="role">
-                                    <SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="tenant">Tenant</SelectItem>
-                                        <SelectItem value="landlord">Landlord</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <Button type="submit" className="w-full" disabled={isLoading}>{isLoading ? "Creating Account..." : "Create Account"}</Button>
-                        </div>
-                    </form>
-                    <div className="mt-4 text-center text-sm">Already have an account? <Link to="/login" className="underline">Sign in</Link></div>
-                </div>
-            </div>
+  const onChange = (e) => {
+    setFormData((prevState) => ({
+      ...prevState,
+      [e.target.name]: e.target.value,
+    }));
+  };
+
+  const handleRoleChange = (value) => {
+    setFormData((prevState) => ({ ...prevState, role: value }));
+  };
+
+  const onSubmit = (e) => {
+    e.preventDefault();
+    if (password !== password2) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    dispatch(register({ name, email, password, role }));
+  };
+
+  if (user) {
+    if (user.role === "landlord")
+      return <Navigate to="/landlord/dashboard" replace />;
+    if (user.role === "tenant")
+      return <Navigate to="/tenant/dashboard" replace />;
+  }
+
+  return (
+    <div className="w-full lg:grid lg:min-h-screen lg:grid-cols-2 xl:grid-cols-5">
+      {/* Left Image Panel */}
+      <div className="relative hidden h-full flex-col p-10 text-white dark:border-r lg:flex xl:col-span-3">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{
+            backgroundImage:
+              "url(https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?q=80&w=2070&auto=format&fit=crop)",
+          }}
+        />
+        <div className="absolute inset-0 bg-black/45" />
+        <div className="relative z-20 flex items-center text-lg font-medium">
+          <Building2 className="mr-2 h-6 w-6" />
+          Leaseify
         </div>
-    );
+        <div className="relative z-20 mt-auto">
+          <blockquote className="space-y-2">
+            <p className="text-lg">
+              &ldquo;The easiest way to manage my properties and connect with my
+              tenants. A total game-changer.&rdquo;
+            </p>
+            <footer className="text-sm">Alex Johnson, Landlord</footer>
+          </blockquote>
+        </div>
+      </div>
+
+      {/* Right Form Panel */}
+      <div className="relative flex items-center justify-center py-12 xl:col-span-2">
+        <div className="absolute top-4 right-4">
+          <ThemeToggleButton />
+        </div>
+        <div className="mx-auto grid w-[350px] gap-6">
+          <div className="grid gap-2 text-center">
+            <h1 className="text-3xl font-bold">Create an Account</h1>
+            <p className="text-balance text-muted-foreground">
+              Enter your information to get started.
+            </p>
+          </div>
+          <form onSubmit={onSubmit} className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Full Name</Label>
+              <Input
+                id="name"
+                name="name"
+                placeholder="John Doe"
+                value={name}
+                onChange={onChange}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="name@example.com"
+                value={email}
+                onChange={onChange}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                value={password}
+                onChange={onChange}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="password2">Confirm Password</Label>
+              <Input
+                id="password2"
+                name="password2"
+                type="password"
+                value={password2}
+                onChange={onChange}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="role">I am a...</Label>
+              <Select value={role} onValueChange={handleRoleChange} name="role">
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tenant">Tenant</SelectItem>
+                  <SelectItem value="landlord">Landlord</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Creating Account..." : "Create Account"}
+            </Button>
+          </form>
+          <div className="mt-4 text-center text-sm">
+            Already have an account?{" "}
+            <Link to="/login" className="underline font-semibold">
+              Sign in
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default RegisterPage;
+// import React, { useState, useEffect } from "react";
+// import { useSelector, useDispatch } from "react-redux";
+// import { useNavigate, Navigate, Link } from "react-router-dom";
+// import { register, reset } from "../features/auth/authSlice";
+// import { toast } from "react-toastify";
+
+// import { Button } from "@/components/ui/button";
+// import { Input } from "@/components/ui/input";
+// import { Label } from "@/components/ui/label";
+// import {
+//   Select,
+//   SelectContent,
+//   SelectItem,
+//   SelectTrigger,
+//   SelectValue,
+// } from "@/components/ui/select";
+
+// function RegisterPage() {
+//   const [formData, setFormData] = useState({
+//     name: "",
+//     email: "",
+//     password: "",
+//     password2: "",
+//     role: "tenant",
+//   });
+//   const { name, email, password, password2, role } = formData;
+
+//   const navigate = useNavigate();
+//   const dispatch = useDispatch();
+//   const { user, isLoading, isError, message } = useSelector(
+//     (state) => state.auth
+//   );
+
+//   useEffect(() => {
+//     if (isError) {
+//       toast.error(message);
+//       dispatch(reset());
+//     }
+//   }, [isError, message, dispatch]);
+
+//   const onChange = (e) => {
+//     setFormData((prevState) => ({
+//       ...prevState,
+//       [e.target.name]: e.target.value,
+//     }));
+//   };
+
+//   const handleRoleChange = (value) => {
+//     setFormData((prevState) => ({ ...prevState, role: value }));
+//   };
+
+//   const onSubmit = (e) => {
+//     e.preventDefault();
+//     if (password !== password2) {
+//       toast.error("Passwords do not match");
+//       return;
+//     }
+//     dispatch(register({ name, email, password, role }));
+//   };
+
+//   if (user) {
+//     if (user.role === "landlord")
+//       return <Navigate to="/landlord/dashboard" replace />;
+//     if (user.role === "tenant")
+//       return <Navigate to="/tenant/dashboard" replace />;
+//   }
+
+//   return (
+//     <div className="w-full lg:grid lg:min-h-screen lg:grid-cols-2">
+//       {/* Left Branding Panel */}
+//       <div className="hidden bg-gray-100 lg:flex lg:flex-col lg:items-center lg:justify-center dark:bg-gray-800 p-10 text-center">
+//         <div className="mx-auto w-[350px]">
+//           <h1 className="text-5xl font-bold text-blue-600">Leasify</h1>
+//           <p className="mt-4 text-xl text-gray-600 dark:text-gray-300">
+//             Join our platform to streamline your rental experience.
+//           </p>
+//         </div>
+//       </div>
+//       {/* Right Form Panel */}
+//       <div className="flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+//         <div className="mx-auto grid w-[350px] gap-6">
+//           <div className="grid gap-2 text-center">
+//             <h1 className="text-3xl font-bold">Create an Account</h1>
+//             <p className="text-balance text-muted-foreground">
+//               Enter your information to get started.
+//             </p>
+//           </div>
+//           <form onSubmit={onSubmit}>
+//             <div className="grid gap-4">
+//               <div className="grid gap-2">
+//                 <Label htmlFor="name">Full Name</Label>
+//                 <Input
+//                   id="name"
+//                   name="name"
+//                   placeholder="John Doe"
+//                   value={name}
+//                   onChange={onChange}
+//                   required
+//                 />
+//               </div>
+//               <div className="grid gap-2">
+//                 <Label htmlFor="email">Email</Label>
+//                 <Input
+//                   id="email"
+//                   name="email"
+//                   type="email"
+//                   placeholder="name@example.com"
+//                   value={email}
+//                   onChange={onChange}
+//                   required
+//                 />
+//               </div>
+//               <div className="grid gap-2">
+//                 <Label htmlFor="password">Password</Label>
+//                 <Input
+//                   id="password"
+//                   name="password"
+//                   type="password"
+//                   value={password}
+//                   onChange={onChange}
+//                   required
+//                 />
+//               </div>
+//               <div className="grid gap-2">
+//                 <Label htmlFor="password2">Confirm Password</Label>
+//                 <Input
+//                   id="password2"
+//                   name="password2"
+//                   type="password"
+//                   value={password2}
+//                   onChange={onChange}
+//                   required
+//                 />
+//               </div>
+//               <div className="grid gap-2">
+//                 <Label htmlFor="role">I am a...</Label>
+//                 <Select
+//                   value={role}
+//                   onValueChange={handleRoleChange}
+//                   name="role"
+//                 >
+//                   <SelectTrigger>
+//                     <SelectValue placeholder="Select a role" />
+//                   </SelectTrigger>
+//                   <SelectContent>
+//                     <SelectItem value="tenant">Tenant</SelectItem>
+//                     <SelectItem value="landlord">Landlord</SelectItem>
+//                   </SelectContent>
+//                 </Select>
+//               </div>
+//               <Button type="submit" className="w-full" disabled={isLoading}>
+//                 {isLoading ? "Creating Account..." : "Create Account"}
+//               </Button>
+//             </div>
+//           </form>
+//           <div className="mt-4 text-center text-sm">
+//             Already have an account?{" "}
+//             <Link to="/login" className="underline">
+//               Sign in
+//             </Link>
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }
+
+// export default RegisterPage;
 // import React, { useState, useEffect } from 'react';
 // // Step 2.1: Import the necessary tools from React-Redux, React-Router, and our Auth Slice
 // import { useSelector, useDispatch } from 'react-redux';
@@ -142,7 +403,6 @@ export default RegisterPage;
 
 //     }, [user, isError, isSuccess, message, navigate, dispatch]);
 
-
 //     const onChange = (e) => {
 //         setFormData((prevState) => ({
 //             ...prevState,
@@ -166,7 +426,7 @@ export default RegisterPage;
 //             dispatch(register(userData));
 //         }
 //     };
-    
+
 //     // Step 2.6: Add a loading indicator for better user experience
 //     if (isLoading) {
 //         return <h1>Loading...</h1>

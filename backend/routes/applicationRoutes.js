@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { body, param } = require('express-validator');
 const { protect } = require('../middleware/authMiddleware');
+// const { isLandlord } = require('../../middleware/roleMiddleware'); // Import from the correct file
+const {isLandlord} =require ('../middleware/roleMiddleware')
+
 const {
     createApplication,
     getApplications,

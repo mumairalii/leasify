@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 // --- Custom Component Imports ---
 import PropertyCard from "@/components/dashboard/PropertyCard";
 
-const LandlordPropertiesPage = () => {
+const LandLordPropertiesPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate(); // Hook for navigation
 
@@ -146,7 +146,7 @@ const LandlordPropertiesPage = () => {
   );
 };
 
-export default LandlordPropertiesPage;
+export default LandLordPropertiesPage;
 
 // /**
 //  * LandlordPropertiesPage.jsx

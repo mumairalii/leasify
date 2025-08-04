@@ -17,7 +17,7 @@ import LandLordMaintenancePage from "./pages/LandLordMaintenancePage";
 import TenantMaintenancePage from "./pages/TenantMaintenancePage";
 import PropertyDetailPage from "./pages/PropertyDetailPage";
 import HomePage from "./pages/HomePage"; // Assuming you have this from our previous step
-import LandlordPropertiesPage from "./pages/LandlordPropertiesPage";
+import LandLordPropertiesPage from "./pages/LandLordPropertiesPage";
 import BrowsePropertiesPage from "./pages/BrowsePropertiesPage"; // <-- Import the new page
 import AllTenantsPage from "./pages/AllTenantsPage";
 import TenantDetailPage from "./pages/TenantDetailPage";
@@ -105,7 +105,7 @@ function App() {
                 path="/landlord/properties"
                 element={
                   <ProtectedRoute roles={["landlord"]}>
-                    <LandlordPropertiesPage />
+                    <LandLordPropertiesPage />
                   </ProtectedRoute>
                 }
               />{" "}

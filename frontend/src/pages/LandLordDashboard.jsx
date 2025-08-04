@@ -177,7 +177,7 @@ function LandlordDashboard() {
 
   const { kpis = {}, charts = {} } = stats || {};
 
-  if (isLoading && !stats.kpis.totalProperties) {
+  if (isLoading && !kpis.totalProperties) {
     return (
       <div className="flex items-center justify-center h-screen">
         <p>Loading Your Dashboard...</p>
@@ -212,39 +212,10 @@ function LandlordDashboard() {
 
         <main className="grid gap-8">
           {/* --- ZONE A: Key Performance Indicators --- */}
-          {/* <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              title="Collected vs. Potential Rent (This Month)"
-              value={`$${kpis.collectedThisMonth?.toLocaleString() || 0} / $${
-                kpis.potentialMonthlyRent?.toLocaleString() || 0
-              }`}
-              description="Actual income vs. total possible rent."
-              icon={CircleDollarSign}
-            />
-            <StatCard
-              title="Occupancy Rate"
-              value={`${kpis.occupancyRate || 0}%`}
-              description={`${kpis.vacantUnits || 0} vacant units`}
-              icon={UserCheck}
-            />
-            <StatCard
-              title="Open Maintenance"
-              value={kpis.openMaintenanceCount || 0}
-              description="Active requests needing attention."
-              icon={Wrench}
-              color="destructive"
-            />
-            <StatCard
-              title="Leases Expiring Soon"
-              value={kpis.leasesExpiringSoon || 0}
-              description="Leases ending in the next 60 days."
-              icon={FileWarning}
-            />
-          </section> */}
 
           {/* --- ZONE A: Key Performance Indicators --- */}
           {/* --- ZONE A: Key Performance Indicators --- */}
-          <section className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+          {/* <section className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
               title="Collected vs. Potential Rent"
               value={`$${kpis.collectedThisMonth?.toLocaleString() || 0}`}
@@ -278,6 +249,56 @@ function LandlordDashboard() {
             />
             <StatCard
               title="Leases Expiring"
+              value={kpis.leasesExpiringSoon || 0}
+              description={`${kpis.recentlyRenewed || 0} recently renewed`}
+              icon={FileWarning}
+              color="warning"
+            />
+          </section> */}
+
+          <section className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              title="Collected vs. Potential Rent"
+              // --- FIX #2: Safe `toLocaleString` ---
+              // Default to 0 *before* calling toLocaleString.
+              value={`$${(kpis.collectedThisMonth || 0).toLocaleString()}`}
+              description={`of $${(
+                kpis.potentialMonthlyRent || 0
+              ).toLocaleString()}`}
+              icon={CircleDollarSign}
+              color="success"
+              // --- FIX #3: Safe Division ---
+              // Check if potential rent is a non-zero number before dividing.
+              progress={
+                kpis.potentialMonthlyRent
+                  ? (kpis.collectedThisMonth / kpis.potentialMonthlyRent) * 100
+                  : 0
+              }
+            />
+            <StatCard
+              title="Occupancy Rate"
+              // This card was already safe, no changes needed.
+              value={`${kpis.occupancyRate || 0}%`}
+              description={`${kpis.vacantUnits || 0} vacant of ${
+                kpis.totalUnits || 0
+              }`}
+              icon={UserCheck}
+              color="info"
+              progress={kpis.occupancyRate || 0} // Add a fallback for progress just in case
+            />
+            <StatCard
+              title="Open Maintenance"
+              // This card was already safe, no changes needed.
+              value={kpis.openMaintenanceCount || 0}
+              description={`${
+                kpis.recentlyCompletedMaintenance || 0
+              } recently resolved`}
+              icon={Wrench}
+              color="destructive"
+            />
+            <StatCard
+              title="Leases Expiring"
+              // This card was already safe, no changes needed.
               value={kpis.leasesExpiringSoon || 0}
               description={`${kpis.recentlyRenewed || 0} recently renewed`}
               icon={FileWarning}

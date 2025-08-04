@@ -84,30 +84,31 @@ export const maintenanceSlice = createSlice({
             .addCase(updateRequest.pending, (state) => {
                 state.isLoading = true;
             })
-            .addCase(updateRequest.fulfilled, (state, action) => {
-                state.isLoading = false;
-                state.isSuccess = true;
-                state.requests = state.requests.map((req) => req._id === action.payload._id ? action.payload : req);
+             .addCase(updateRequest.fulfilled, (state, action) => {
+                const index = state.requests.findIndex(req => req._id === action.payload._id);
+                if (index !== -1) {
+                    state.requests[index] = action.payload;
+                }
             })
             .addCase(updateRequest.rejected, (state, action) => {
-                state.isLoading = false;
-                state.isError = true;
-                state.message = action.payload;
-            })
-            // Delete Request
-            .addCase(deleteRequest.pending, (state) => {
-                state.isLoading = true;
-            })
-            .addCase(deleteRequest.fulfilled, (state, action) => {
-                state.isLoading = false;
-                state.isSuccess = true;
-                state.requests = state.requests.filter((req) => req._id !== action.payload.id);
-            })
-            .addCase(deleteRequest.rejected, (state, action) => {
-                state.isLoading = false;
                 state.isError = true;
                 state.message = action.payload;
             });
+            
+            // // Delete Request
+            // .addCase(deleteRequest.pending, (state) => {
+            //     state.isLoading = true;
+            // })
+            // .addCase(deleteRequest.fulfilled, (state, action) => {
+            //     state.isLoading = false;
+            //     state.isSuccess = true;
+            //     state.requests = state.requests.filter((req) => req._id !== action.payload.id);
+            // })
+            // .addCase(deleteRequest.rejected, (state, action) => {
+            //     state.isLoading = false;
+            //     state.isError = true;
+            //     state.message = action.payload;
+            // });
     },
 });
 

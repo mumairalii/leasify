@@ -17,11 +17,16 @@ import LandLordMaintenancePage from "./pages/LandLordMaintenancePage";
 import TenantMaintenancePage from "./pages/TenantMaintenancePage";
 import PropertyDetailPage from "./pages/PropertyDetailPage";
 import HomePage from "./pages/HomePage"; // Assuming you have this from our previous step
+import LandlordPropertiesPage from "./pages/LandlordPropertiesPage";
 import BrowsePropertiesPage from "./pages/BrowsePropertiesPage"; // <-- Import the new page
-
+import AllTenantsPage from "./pages/AllTenantsPage";
+import TenantDetailPage from "./pages/TenantDetailPage";
 // import LandlordApplicationsPage from './pages/LandlordApplicationsPage'
-
+import LogDisplayPage from "./pages/LogDisplayPage";
 import LandlordApplicationsPage from "./pages/LandLordAplicationsPage";
+import AddPropertyPage from "./pages/AddPropertyPage";
+import CommunicationLogPage from "./pages/CommunicationLogPage";
+import EditPropertyPage from "./pages/EditPropertyPage";
 
 function App() {
   return (
@@ -55,6 +60,54 @@ function App() {
               <Route
                 path="/landlord/applications"
                 element={<LandlordApplicationsPage />}
+              />
+              <Route path="/landlord/tenants" element={<AllTenantsPage />} />
+              <Route
+                path="/landlord/tenants/:tenantId"
+                element={<TenantDetailPage />}
+              />
+              <Route
+                path="landlord/properties/edit/:propertyId"
+                element={
+                  <ProtectedRoute roles={["landlord"]}>
+                    <EditPropertyPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/landlord/logs/communications"
+                element={
+                  <ProtectedRoute roles={["landlord"]}>
+                    <CommunicationLogPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/landlord/properties/new"
+                element={
+                  <ProtectedRoute roles={["landlord"]}>
+                    <AddPropertyPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/landlord/logs/system"
+                element={
+                  <ProtectedRoute roles={["landlord"]}>
+                    <LogDisplayPage
+                      title="System Activity Logs"
+                      filterType="System"
+                    />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/landlord/properties"
+                element={
+                  <ProtectedRoute roles={["landlord"]}>
+                    <LandlordPropertiesPage />
+                  </ProtectedRoute>
+                }
               />{" "}
               {/* 2. Add the new route here */}
               {/* Tenant Routes */}

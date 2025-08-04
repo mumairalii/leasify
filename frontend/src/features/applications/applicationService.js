@@ -1,30 +1,78 @@
 import api from '../../services/api.js';
 
-// The 'token' argument is removed from all functions.
+const API_URL_LANDLORD = '/applications/landlord';
+const API_URL_PUBLIC = '/applications';
 
-const createApplication = async (applicationData) => {
-    const response = await api.post('applications', applicationData);
-    return response.data;
-};
-
+// Get all applications for the landlord hub
 const getApplications = async () => {
-    const response = await api.get('applications');
+    const response = await api.get(API_URL_LANDLORD);
     return response.data;
 };
 
-const updateApplicationStatus = async (data) => {
-    const { id, status } = data;
-    const response = await api.put(`applications/${id}`, { status });
+// Get the dashboard summary of recent applications
+const getApplicationSummary = async () => {
+    const response = await api.get(`${API_URL_LANDLORD}/summary`);
     return response.data;
 };
+
+// Update an application's status (Approve/Deny)
+const updateApplicationStatus = async (appData) => {
+    const { id, status } = appData;
+    const response = await api.put(`${API_URL_LANDLORD}/${id}`, { status });
+    return response.data;
+};
+
+// Create a new application (for tenants)
+const createApplication = async (appData) => {
+    const response = await api.post(API_URL_PUBLIC, appData);
+    return response.data;
+};
+
 
 const applicationService = {
-    createApplication,
     getApplications,
+    getApplicationSummary,
     updateApplicationStatus,
+    createApplication,
 };
 
 export default applicationService;
+
+// import api from '../../services/api.js';
+
+// // The 'token' argument is removed from all functions.
+
+// const createApplication = async (applicationData) => {
+//     const response = await api.post('applications', applicationData);
+//     return response.data;
+// };
+
+// const getApplications = async () => {
+//     const response = await api.get('applications');
+//     return response.data;
+// };
+
+// const getApplicationSummary = async () => {
+//     // We no longer need the 'token' argument or the 'config' object.
+//     // The Axios interceptor in api.js handles the Authorization header automatically.
+//     const response = await api.get('/applications/summary');
+//     return response.data;
+// };
+
+// const updateApplicationStatus = async (data) => {
+//     const { id, status } = data;
+//     const response = await api.put(`applications/${id}`, { status });
+//     return response.data;
+// };
+
+// const applicationService = {
+//     createApplication,
+//     getApplications,
+//     updateApplicationStatus,
+//     getApplicationSummary,
+// };
+
+// export default applicationService;
 
 // // src/features/applications/applicationService.js
 // import api from '../../services/api';

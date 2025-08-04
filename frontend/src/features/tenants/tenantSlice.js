@@ -4,9 +4,16 @@ import tenantService from './tenantService.js';
 const initialState = {
     overdueTenants: [],
     allTenants: [],
+    selectedTenant: {
+        details: null,
+        isLoading: true,
+    },
+    upcomingPayments: [], // <-- NEW STATE
+    isUpcomingLoading: false, // <-- NEW STATE
     isLoading: false,
     isError: false,
     message: '',
+
 };
 
 const getErrorMessage = (error) => (error.response?.data?.message) || error.message || error.toString();
@@ -27,6 +34,26 @@ export const getTenants = createAsyncThunk('tenants/getAll', async (_, thunkAPI)
         return thunkAPI.rejectWithValue(getErrorMessage(error));
     }
 });
+
+// Add the new Thunk
+export const getUpcomingPayments = createAsyncThunk('tenants/getUpcoming', async (_, thunkAPI) => {
+    try {
+        return await tenantService.getUpcomingPayments();
+    } catch (error) {
+        const message = (error.response?.data?.message) || error.message || error.toString();
+        return thunkAPI.rejectWithValue(message);
+    }
+});
+
+export const getTenantById = createAsyncThunk('tenants/getById', async (tenantId, thunkAPI) => {
+    try {
+        return await tenantService.getTenantById(tenantId);
+    } catch (error) {
+        const message = (error.response?.data?.message) || error.message || error.toString();
+        return thunkAPI.rejectWithValue(message);
+    }
+});
+
 
 export const tenantSlice = createSlice({
     name: 'tenants',
@@ -51,7 +78,31 @@ export const tenantSlice = createSlice({
             })
             .addCase(getTenants.rejected, (state, action) => {
                 state.isLoading = false; state.isError = true; state.message = action.payload;
-            });
+            })
+            .addCase(getTenantById.pending, (state) => {
+        state.selectedTenant.isLoading = true;
+    })
+    .addCase(getTenantById.fulfilled, (state, action) => {
+        state.selectedTenant.isLoading = false;
+        state.selectedTenant.details = action.payload;
+    })
+    .addCase(getTenantById.rejected, (state, action) => {
+        state.selectedTenant.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+    })
+    .addCase(getUpcomingPayments.pending, (state) => {
+        state.isUpcomingLoading = true;
+    })
+    .addCase(getUpcomingPayments.fulfilled, (state, action) => {
+        state.isUpcomingLoading = false;
+        state.upcomingPayments = action.payload;
+    })
+    .addCase(getUpcomingPayments.rejected, (state, action) => {
+        state.isUpcomingLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+    });
     },
 });
 

@@ -1,23 +1,32 @@
 import api from '../../services/api.js';
 
-const API_URL = 'landlord/tenants/';
-
-// The 'token' argument is removed from all functions.
-// The interceptor will handle authentication.
+const LANDLORD_API_URL = '/landlord/tenants';
 
 const getOverdueTenants = async () => {
-    const response = await api.get(API_URL + 'overdue');
+    const response = await api.get(`${LANDLORD_API_URL}/overdue`);
     return response.data;
 };
 
 const getTenants = async () => {
-    const response = await api.get(API_URL);
+    const response = await api.get(LANDLORD_API_URL);
+    return response.data;
+};
+
+const getTenantById = async (tenantId) => {
+    const response = await api.get(`${LANDLORD_API_URL}/${tenantId}`);
+    return response.data;
+};
+
+const getUpcomingPayments = async () => {
+    const response = await api.get(`${LANDLORD_API_URL}/upcoming`);
     return response.data;
 };
 
 const tenantService = {
     getOverdueTenants,
     getTenants,
+    getTenantById,
+    getUpcomingPayments,
 };
 
 export default tenantService;

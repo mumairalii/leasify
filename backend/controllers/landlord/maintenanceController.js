@@ -1,18 +1,29 @@
+// tenant_manage/backend/controllers/landlord/maintenanceController.js
 const asyncHandler = require('express-async-handler');
 const { validationResult } = require('express-validator');
 const MaintenanceRequest = require('../../models/MaintenanceRequest');
 const LogEntry = require('../../models/LogEntry');
 
-const getMaintenanceRequests = asyncHandler(async (req, res) => {
+/**
+ * @desc    Get all maintenance requests for the landlord's organization
+ * @route   GET /api/landlord/maintenance-requests
+ * @access  Private (Landlord Only)
+ */
+const getLandlordRequests = asyncHandler(async (req, res) => {
     const requests = await MaintenanceRequest.find({ organization: req.user.organization })
-        .sort({ createdAt: -1 })
         .populate('tenant', 'name email')
-        .populate('property', 'address');
+        .populate('property', 'address')
+        .sort({ createdAt: -1 });
     res.status(200).json(requests);
 });
 
-const updateMaintenanceRequest = asyncHandler(async (req, res) => {
-    // Check for validation errors first
+/**
+ * @desc    Update a maintenance request's status
+ * @route   PUT /api/landlord/maintenance-requests/:id
+ * @access  Private (Landlord Only)
+ */
+const updateRequestStatus = asyncHandler(async (req, res) => {
+    // This function remains the same as before
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         res.status(400);
@@ -35,7 +46,7 @@ const updateMaintenanceRequest = asyncHandler(async (req, res) => {
         organization: req.user.organization,
         actor: req.user.name,
         type: 'Maintenance',
-        message: `Updated maintenance request status to "${status}"`,
+        message: `Updated maintenance request for ${updatedRequest.property.address.street} to "${status}"`,
         property: updatedRequest.property._id,
         tenant: updatedRequest.tenant._id,
     });
@@ -43,23 +54,137 @@ const updateMaintenanceRequest = asyncHandler(async (req, res) => {
     res.status(200).json(updatedRequest);
 });
 
-const deleteMaintenanceRequest = asyncHandler(async (req, res) => {
-    const request = await MaintenanceRequest.findOneAndDelete({
-        _id: req.params.id,
-        organization: req.user.organization
-    });
-    if (!request) {
-        res.status(404);
-        throw new Error('Request not found or not authorized');
-    }
-    res.status(200).json({ id: req.params.id, message: 'Request deleted' });
-});
+
+// --- The deleteMaintenanceRequest function has been removed ---
 
 module.exports = {
-    getMaintenanceRequests,
-    updateMaintenanceRequest,
-    deleteMaintenanceRequest,
+    getLandlordRequests,
+    updateRequestStatus,
 };
+
+// // tenant_manage/backend/controllers/landlord/maintenanceController.js
+// const asyncHandler = require('express-async-handler');
+// const { validationResult } = require('express-validator');
+// const MaintenanceRequest = require('../../models/MaintenanceRequest');
+// const LogEntry = require('../../models/LogEntry');
+
+// /**
+//  * @desc    Get all maintenance requests for the landlord's organization
+//  * @route   GET /api/landlord/maintenance-requests
+//  * @access  Private (Landlord Only)
+//  */
+// const getLandlordRequests = asyncHandler(async (req, res) => {
+//     const requests = await MaintenanceRequest.find({ organization: req.user.organization })
+//         .populate('tenant', 'name email')
+//         .populate('property', 'address')
+//         .sort({ createdAt: -1 });
+//     res.status(200).json(requests);
+// });
+
+// /**
+//  * @desc    Update a maintenance request's status
+//  * @route   PUT /api/landlord/maintenance-requests/:id
+//  * @access  Private (Landlord Only)
+//  */
+// const updateRequestStatus = asyncHandler(async (req, res) => {
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//         res.status(400);
+//         throw new Error('Validation failed', { cause: errors.array() });
+//     }
+
+//     const { status } = req.body;
+//     const updatedRequest = await MaintenanceRequest.findOneAndUpdate(
+//         { _id: req.params.id, organization: req.user.organization },
+//         { status: status },
+//         { new: true, runValidators: true }
+//     ).populate('tenant', 'name email').populate('property', 'address');
+
+//     if (!updatedRequest) {
+//         res.status(404);
+//         throw new Error('Request not found or not authorized');
+//     }
+
+//     // Log the status change
+//     await LogEntry.create({
+//         organization: req.user.organization,
+//         actor: req.user.name,
+//         type: 'Maintenance',
+//         message: `Updated maintenance request for ${updatedRequest.property.address.street} to "${status}"`,
+//         property: updatedRequest.property._id,
+//         tenant: updatedRequest.tenant._id,
+//     });
+
+//     res.status(200).json(updatedRequest);
+// });
+
+// module.exports = {
+//     getLandlordRequests,
+//     updateRequestStatus,
+// };
+
+// const asyncHandler = require('express-async-handler');
+// const { validationResult } = require('express-validator');
+// const MaintenanceRequest = require('../../models/MaintenanceRequest');
+// const LogEntry = require('../../models/LogEntry');
+
+// const getMaintenanceRequests = asyncHandler(async (req, res) => {
+//     const requests = await MaintenanceRequest.find({ organization: req.user.organization })
+//         .sort({ createdAt: -1 })
+//         .populate('tenant', 'name email')
+//         .populate('property', 'address');
+//     res.status(200).json(requests);
+// });
+
+// const updateMaintenanceRequest = asyncHandler(async (req, res) => {
+//     // Check for validation errors first
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//         res.status(400);
+//         throw new Error('Validation failed', { cause: errors.array() });
+//     }
+
+//     const { status } = req.body;
+//     const updatedRequest = await MaintenanceRequest.findOneAndUpdate(
+//         { _id: req.params.id, organization: req.user.organization },
+//         { status: status },
+//         { new: true, runValidators: true }
+//     ).populate('tenant', 'name email').populate('property', 'address');
+
+//     if (!updatedRequest) {
+//         res.status(404);
+//         throw new Error('Request not found or not authorized');
+//     }
+
+//     await LogEntry.create({
+//         organization: req.user.organization,
+//         actor: req.user.name,
+//         type: 'Maintenance',
+//         message: `Updated maintenance request status to "${status}"`,
+//         property: updatedRequest.property._id,
+//         tenant: updatedRequest.tenant._id,
+//     });
+
+//     res.status(200).json(updatedRequest);
+// });
+
+// const deleteMaintenanceRequest = asyncHandler(async (req, res) => {
+//     const request = await MaintenanceRequest.findOneAndDelete({
+//         _id: req.params.id,
+//         organization: req.user.organization
+//     });
+//     if (!request) {
+//         res.status(404);
+//         throw new Error('Request not found or not authorized');
+//     }
+//     res.status(200).json({ id: req.params.id, message: 'Request deleted' });
+// });
+
+// module.exports = {
+//     getMaintenanceRequests,
+//     updateMaintenanceRequest,
+//     deleteMaintenanceRequest,
+// };
 
 // const asyncHandler = require('express-async-handler');
 // const MaintenanceRequest = require('../../models/MaintenanceRequest');

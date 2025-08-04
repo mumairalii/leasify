@@ -5,7 +5,8 @@ const {
     createProperty, 
     getProperties, 
     updateProperty, 
-    deleteProperty 
+    deleteProperty, 
+    getPropertyById,
 } = require('../../controllers/landlord/propertyController');
 const { protect } = require('../../middleware/authMiddleware');
 const { isLandlord } = require('../../middleware/roleMiddleware'); // Import from the correct file
@@ -46,6 +47,7 @@ const validatePropertyUpdate = [
 // GET all and POST new property
 router.route('/')
     .get(getProperties)
+    .get(getPropertyById)
     .post(validatePropertyCreation, createProperty);
 
 // Routes for a specific property by ID

@@ -26,17 +26,17 @@ const updateRequest = async (requestData) => {
     return response.data;
 };
 
-const deleteRequest = async (requestId) => {
-    const response = await api.delete(LANDLORD_API_URL + requestId);
-    return response.data;
-};
+// const deleteRequest = async (requestId) => {
+//     const response = await api.delete(LANDLORD_API_URL + requestId);
+//     return response.data;
+// };
 
 const maintenanceService = {
     createRequest,
     getTenantRequests,
     getLandlordRequests,
     updateRequest,
-    deleteRequest,
+    // deleteRequest,
 };
 
 export default maintenanceService;

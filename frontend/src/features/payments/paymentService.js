@@ -1,33 +1,76 @@
 import api from '../../services/api.js';
 
-// Use relative paths that will be appended to the baseURL from the api instance
-const LANDLORD_API_URL = 'landlord/payments/';
-const TENANT_API_URL = 'tenant/payments/';
+const LANDLORD_API_URL = '/landlord/payments';
+const TENANT_API_URL = '/tenant/payments';
 
-// The 'token' argument is removed from all functions.
-
+// For landlords to log an offline payment
 const logOfflinePayment = async (paymentData) => {
-    const response = await api.post(LANDLORD_API_URL + 'log-offline', paymentData);
-    return response.data;
+    try {
+        const response = await api.post(`${LANDLORD_API_URL}/log-offline`, paymentData);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data?.message || 'Failed to log offline payment';
+    }
 };
 
+// For landlords to get payment history for a lease
 const getPaymentsForLease = async (leaseId) => {
-    const response = await api.get(LANDLORD_API_URL + `lease/${leaseId}`);
-    return response.data;
+    try {
+        const response = await api.get(`${LANDLORD_API_URL}/lease/${leaseId}`);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data?.message || 'Failed to fetch payment history';
+    }
 };
 
-const getMyPayments = async () => {
-    const response = await api.get(TENANT_API_URL + 'my-payments');
-    return response.data;
+// For tenants to initiate an online payment
+const createPaymentIntent = async (paymentData) => {
+    try {
+        const response = await api.post(`${TENANT_API_URL}/create-payment-intent`, paymentData);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data?.message || 'Failed to create payment intent';
+    }
 };
 
 const paymentService = {
     logOfflinePayment,
+    createPaymentIntent,
     getPaymentsForLease,
-    getMyPayments,
 };
 
 export default paymentService;
+
+// import api from '../../services/api.js';
+
+// // Use relative paths that will be appended to the baseURL from the api instance
+// const LANDLORD_API_URL = 'landlord/payments/';
+// const TENANT_API_URL = 'tenant/payments/';
+
+// // The 'token' argument is removed from all functions.
+
+// const logOfflinePayment = async (paymentData) => {
+//     const response = await api.post(LANDLORD_API_URL + 'log-offline', paymentData);
+//     return response.data;
+// };
+
+// const getPaymentsForLease = async (leaseId) => {
+//     const response = await api.get(LANDLORD_API_URL + `lease/${leaseId}`);
+//     return response.data;
+// };
+
+// const getMyPayments = async () => {
+//     const response = await api.get(TENANT_API_URL + 'my-payments');
+//     return response.data;
+// };
+
+// const paymentService = {
+//     logOfflinePayment,
+//     getPaymentsForLease,
+//     getMyPayments,
+// };
+
+// export default paymentService;
 // // src/features/payments/paymentService.js
 // import api from '../../services/api';
 

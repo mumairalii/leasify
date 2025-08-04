@@ -3,15 +3,44 @@ const { validationResult } = require('express-validator');
 const Property = require('../../models/Property');
 const Lease = require('../../models/Lease');
 const LogEntry = require('../../models/LogEntry');
-
+/**
+ * @desc    Get properties for the organization. Handles both paginated lists and simple, limited lists.
+ * @route   GET /api/properties
+ * @access  Private (Landlord Only)
+ */
 const getProperties = asyncHandler(async (req, res) => {
     const organizationId = req.user.organization;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 9;
-    const skip = (page - 1) * limit;
+    const { limit, page, sort } = req.query;
+
+    // Scenario 1: Simple, sorted, and limited request (for the dashboard)
+    if (limit && sort === 'recent') {
+        const properties = await Property.find({ organization: organizationId })
+            .sort({ createdAt: -1 })
+            .limit(parseInt(limit))
+            .lean(); // Use lean for faster, read-only operations
+
+        // We also need to fetch the status for these recent properties
+        const propertyIds = properties.map(p => p._id);
+        let propertiesWithStatus = properties;
+        if (propertyIds.length > 0) {
+            const activeLeases = await Lease.find({ property: { $in: propertyIds }, status: 'active' }).select('property').lean();
+            const leasedIdsSet = new Set(activeLeases.map(l => l.property.toString()));
+            propertiesWithStatus = properties.map(property => ({
+                ...property,
+                status: leasedIdsSet.has(property._id.toString()) ? 'Rented' : 'Vacant'
+            }));
+        }
+
+        return res.status(200).json({ properties: propertiesWithStatus }); // Return a simplified object
+    }
+    
+    // Scenario 2: Default paginated request (for the "All Properties" page)
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 9;
+    const skip = (pageNum - 1) * limitNum;
 
     const [properties, totalProperties] = await Promise.all([
-        Property.find({ organization: organizationId }).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+        Property.find({ organization: organizationId }).sort({ createdAt: -1 }).skip(skip).limit(limitNum).lean(),
         Property.countDocuments({ organization: organizationId })
     ]);
 
@@ -19,7 +48,7 @@ const getProperties = asyncHandler(async (req, res) => {
     let propertiesWithStatus = properties;
 
     if (propertyIds.length > 0) {
-        const activeLeases = await Lease.find({ property: { $in: propertyIds }, status: 'active' }).select('property');
+        const activeLeases = await Lease.find({ property: { $in: propertyIds }, status: 'active' }).select('property').lean();
         const leasedIdsSet = new Set(activeLeases.map(l => l.property.toString()));
         propertiesWithStatus = properties.map(property => ({
             ...property,
@@ -29,21 +58,26 @@ const getProperties = asyncHandler(async (req, res) => {
 
     res.status(200).json({
         properties: propertiesWithStatus,
-        page,
-        totalPages: Math.ceil(totalProperties / limit),
+        page: pageNum,
+        totalPages: Math.ceil(totalProperties / limitNum),
         totalProperties
     });
 });
 
+
+
+/**
+ * @desc    Create a new property
+ * @route   POST /api/properties
+ * @access  Private (Landlord Only)
+ */
 const createProperty = asyncHandler(async (req, res) => {
-    // Check for validation errors first
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         res.status(400);
         throw new Error('Validation failed', { cause: errors.array() });
     }
     
-    // The old manual check is now replaced by the validator
     const { address, rentAmount, description, propertyType, bedrooms, bathrooms, isListed, imageUrl } = req.body;
 
     const newProperty = await Property.create({
@@ -52,6 +86,7 @@ const createProperty = asyncHandler(async (req, res) => {
         organization: req.user.organization,
     });
 
+    // Log this action
     await LogEntry.create({
         organization: req.user.organization,
         actor: req.user.name,
@@ -63,8 +98,12 @@ const createProperty = asyncHandler(async (req, res) => {
     res.status(201).json(newProperty);
 });
 
+/**
+ * @desc    Update an existing property
+ * @route   PUT /api/properties/:id
+ * @access  Private (Landlord Only)
+ */
 const updateProperty = asyncHandler(async (req, res) => {
-    // 1. Check for validation errors first
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         res.status(400);
@@ -79,9 +118,10 @@ const updateProperty = asyncHandler(async (req, res) => {
 
     if (!updatedProperty) {
         res.status(404);
-        throw new Error('Property not found or not authorized');
+        throw new Error('Property not found or user not authorized to modify');
     }
 
+    // Log this action
     await LogEntry.create({
         organization: req.user.organization,
         actor: req.user.name,
@@ -93,6 +133,11 @@ const updateProperty = asyncHandler(async (req, res) => {
     res.status(200).json(updatedProperty);
 });
 
+/**
+ * @desc    Delete a property
+ * @route   DELETE /api/properties/:id
+ * @access  Private (Landlord Only)
+ */
 const deleteProperty = asyncHandler(async (req, res) => {
     const activeLease = await Lease.findOne({ property: req.params.id, status: 'active' });
     if (activeLease) {
@@ -107,9 +152,10 @@ const deleteProperty = asyncHandler(async (req, res) => {
 
     if (!deletedProperty) {
         res.status(404);
-        throw new Error('Property not found or not authorized');
+        throw new Error('Property not found or user not authorized to delete');
     }
 
+    // Log this action
     await LogEntry.create({
         organization: req.user.organization,
         actor: req.user.name,
@@ -120,13 +166,190 @@ const deleteProperty = asyncHandler(async (req, res) => {
 
     res.status(200).json({ id: req.params.id, message: 'Property removed successfully' });
 });
+/**
+ * @desc    Get a single property by its ID
+ * @route   GET /api/landlord/properties/:id
+ * @access  Private (Landlord Only)
+ */
+const getPropertyById = asyncHandler(async (req, res) => {
+    const property = await Property.findOne({
+        _id: req.params.id,
+        organization: req.user.organization
+    });
+
+    if (!property) {
+        res.status(404);
+        throw new Error('Property not found');
+    }
+
+    res.status(200).json(property);
+});
+
+
 
 module.exports = {
-    createProperty,
     getProperties,
+    createProperty,
     updateProperty,
     deleteProperty,
+    getPropertyById,
 };
+// const asyncHandler = require('express-async-handler');
+// const { validationResult } = require('express-validator');
+// const Property = require('../../models/Property');
+// const Lease = require('../../models/Lease');
+// const LogEntry = require('../../models/LogEntry');
+
+// const getProperties = asyncHandler(async (req, res) => {
+//     const organizationId = req.user.organization;
+//     const page = parseInt(req.query.page) || 1;
+//     const limit = parseInt(req.query.limit) || 9;
+//     const skip = (page - 1) * limit;
+
+//     const [properties, totalProperties] = await Promise.all([
+//         Property.find({ organization: organizationId }).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+//         Property.countDocuments({ organization: organizationId })
+//     ]);
+
+//     const propertyIds = properties.map(p => p._id);
+//     let propertiesWithStatus = properties;
+
+//     if (propertyIds.length > 0) {
+//         const activeLeases = await Lease.find({ property: { $in: propertyIds }, status: 'active' }).select('property');
+//         const leasedIdsSet = new Set(activeLeases.map(l => l.property.toString()));
+//         propertiesWithStatus = properties.map(property => ({
+//             ...property,
+//             status: leasedIdsSet.has(property._id.toString()) ? 'Rented' : 'Vacant'
+//         }));
+//     }
+
+//     res.status(200).json({
+//         properties: propertiesWithStatus,
+//         page,
+//         totalPages: Math.ceil(totalProperties / limit),
+//         totalProperties
+//     });
+// });
+
+
+
+
+
+// /**
+//  * @desc    Get the 4 most recently added properties for the dashboard
+//  * @route   GET /api/properties/recent
+//  * @access  Private (Landlord Only)
+//  */
+// const getRecentProperties = asyncHandler(async (req, res) => {
+//     // Check for user and organization from our auth middleware
+//     if (!req.user || !req.user.organization) {
+//         res.status(401);
+//         throw new Error('User not authorized');
+//     }
+//     const organizationId = req.user.organization;
+
+//     const properties = await Property.find({ organization: organizationId })
+//         .sort({ createdAt: -1 }) // Sort by newest first
+//         .limit(4); // Limit to 4 properties
+
+//     res.status(200).json(properties);
+// });
+
+
+
+// const createProperty = asyncHandler(async (req, res) => {
+//     // Check for validation errors first
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//         res.status(400);
+//         throw new Error('Validation failed', { cause: errors.array() });
+//     }
+    
+//     // The old manual check is now replaced by the validator
+//     const { address, rentAmount, description, propertyType, bedrooms, bathrooms, isListed, imageUrl } = req.body;
+
+//     const newProperty = await Property.create({
+//         address, rentAmount, description, propertyType, bedrooms, bathrooms, isListed, imageUrl,
+//         owner: req.user._id,
+//         organization: req.user.organization,
+//     });
+
+//     await LogEntry.create({
+//         organization: req.user.organization,
+//         actor: req.user.name,
+//         type: 'System',
+//         message: `Created new property: ${newProperty.address.street}`,
+//         property: newProperty._id,
+//     });
+
+//     res.status(201).json(newProperty);
+// });
+
+// const updateProperty = asyncHandler(async (req, res) => {
+//     // 1. Check for validation errors first
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//         res.status(400);
+//         throw new Error('Validation failed', { cause: errors.array() });
+//     }
+
+//     const updatedProperty = await Property.findOneAndUpdate(
+//         { _id: req.params.id, organization: req.user.organization },
+//         req.body,
+//         { new: true, runValidators: true }
+//     );
+
+//     if (!updatedProperty) {
+//         res.status(404);
+//         throw new Error('Property not found or not authorized');
+//     }
+
+//     await LogEntry.create({
+//         organization: req.user.organization,
+//         actor: req.user.name,
+//         type: 'System',
+//         message: `Updated details for property: ${updatedProperty.address.street}`,
+//         property: updatedProperty._id,
+//     });
+
+//     res.status(200).json(updatedProperty);
+// });
+
+// const deleteProperty = asyncHandler(async (req, res) => {
+//     const activeLease = await Lease.findOne({ property: req.params.id, status: 'active' });
+//     if (activeLease) {
+//         res.status(400);
+//         throw new Error('Cannot delete a property with an active lease. Please end the lease first.');
+//     }
+
+//     const deletedProperty = await Property.findOneAndDelete({
+//         _id: req.params.id,
+//         organization: req.user.organization
+//     });
+
+//     if (!deletedProperty) {
+//         res.status(404);
+//         throw new Error('Property not found or not authorized');
+//     }
+
+//     await LogEntry.create({
+//         organization: req.user.organization,
+//         actor: req.user.name,
+//         type: 'System',
+//         message: `Deleted property: ${deletedProperty.address.street}`,
+//         property: deletedProperty._id,
+//     });
+
+//     res.status(200).json({ id: req.params.id, message: 'Property removed successfully' });
+// });
+
+// module.exports = {
+//     createProperty,
+//     getProperties,
+//     updateProperty,
+//     deleteProperty,
+//     getRecentProperties,
+// };
 
 // const asyncHandler = require('express-async-handler');
 // const Property = require('../../models/Property');

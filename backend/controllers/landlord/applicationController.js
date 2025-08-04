@@ -32,15 +32,42 @@ const createApplication = asyncHandler(async (req, res) => {
     res.status(201).json(newApplication);
 });
 
-const getApplications = asyncHandler(async (req, res) => {
-    const applications = await Application.find({
-        organization: req.user.organization,
-        status: 'Pending'
-    }).populate('tenant', 'name email').populate('property', 'address');
-
+/**
+ * @desc    Get ALL applications for the landlord's organization for the main management page.
+ * @route   GET /api/landlord/applications/
+ * @access  Private (Landlord Only)
+ */
+const getAllApplications = asyncHandler(async (req, res) => {
+    const applications = await Application.find({ organization: req.user.organization })
+        .populate('applicant', 'name email') // Changed from 'tenant' to 'applicant' to match your schema
+        .populate('property', 'address')
+        .sort({ createdAt: -1 });
     res.status(200).json(applications);
 });
 
+/**
+ * @desc    Get a summary of recent, PENDING applications for the dashboard widget.
+ * @route   GET /api/landlord/applications/summary
+ * @access  Private (Landlord Only)
+ */
+const getApplicationSummary = asyncHandler(async (req, res) => {
+    if (!req.user || !req.user.organization) {
+        res.status(401);
+        throw new Error('User not authorized or not part of an organization');
+    }
+    const applications = await Application.find({ organization: req.user.organization, status: 'Pending' })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .populate('applicant', 'name email')
+        .populate('property', 'address');
+    res.status(200).json(applications);
+});
+
+/**
+ * @desc    Update an application's status to "Approved" or "Denied".
+ * @route   PUT /api/landlord/applications/:id
+ * @access  Private (Landlord Only)
+ */
 const updateApplicationStatus = asyncHandler(async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -48,64 +75,131 @@ const updateApplicationStatus = asyncHandler(async (req, res) => {
         throw new Error('Validation failed', { cause: errors.array() });
     }
 
-    const { status } = req.body;
-    const { id } = req.params;
-    const { organization, name: actorName } = req.user;
+    const { status } = req.body; // Expecting "Approved" or "Denied"
 
-    const application = await Application.findOneAndUpdate(
-        { _id: id, organization: organization, status: 'Pending' },
+    const updatedApplication = await Application.findOneAndUpdate(
+        { _id: req.params.id, organization: req.user.organization },
         { status: status },
-        { new: false }
-    ).populate('tenant property');
+        { new: true, runValidators: true }
+    ).populate('applicant', 'name email').populate('property', 'address');
 
-    if (!application) {
+    if (!updatedApplication) {
         res.status(404);
-        throw new Error('Pending application not found or you are not authorized.');
-    }
-
-    if (status === 'Approved') {
-        const existingLease = await Lease.findOne({ property: application.property._id, status: 'active' });
-        if (existingLease) {
-            application.status = 'Pending';
-            await application.save();
-            res.status(409);
-            throw new Error('This property has already been assigned an active lease.');
-        }
-
-        await Lease.create({
-            property: application.property._id,
-            tenant: application.tenant._id,
-            organization: application.organization,
-            startDate: application.requestedStartDate || new Date(),
-            endDate: application.requestedEndDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
-            rentAmount: application.property.rentAmount,
-            status: 'active'
-        });
-
-        await User.findByIdAndUpdate(application.tenant._id, {
-            organization: application.organization
-        });
+        throw new Error('Application not found or not authorized');
     }
 
     await LogEntry.create({
-        organization,
-        actor: actorName,
-        type: 'System',
-        message: `Application for ${application.tenant.name} was ${status.toLowerCase()}`,
-        tenant: application.tenant._id,
-        property: application.property._id,
+        organization: req.user.organization,
+        actor: req.user.name,
+        type: 'Application',
+        message: `Application for ${updatedApplication.applicant.name} at ${updatedApplication.property.address.street} was ${status}.`,
+        property: updatedApplication.property._id,
+        tenant: updatedApplication.applicant._id,
     });
 
-    const finalApplicationState = application.toObject();
-    finalApplicationState.status = status;
-
-    res.status(200).json(finalApplicationState);
+    res.status(200).json(updatedApplication);
 });
+
+// const getApplications = asyncHandler(async (req, res) => {
+//     const applications = await Application.find({
+//         organization: req.user.organization,
+//         status: 'Pending'
+//     }).populate('tenant', 'name email').populate('property', 'address');
+
+//     res.status(200).json(applications);
+// });
+
+/**
+ * @desc    Get a summary of recent, pending applications for the dashboard
+ * @route   GET /api/applications/summary
+ * @access  Private (Landlord Only)
+ */
+// const getApplicationSummary = asyncHandler(async (req, res) => {
+//     // --- THIS IS THE FIX ---
+//     // Add a defensive check to ensure the user object exists.
+//     if (!req.user || !req.user.organization) {
+//         res.status(401);
+//         throw new Error('User not authorized or not part of an organization');
+//     }
+//     // --- END OF FIX ---
+
+//     const organizationId = req.user.organization;
+
+//     const applications = await Application.find({ organization: organizationId, status: 'Pending' })
+//         .sort({ createdAt: -1 })
+//         .limit(5)
+//         .populate('property', 'address')
+//         .populate('applicant', 'name email');
+
+//     res.status(200).json(applications);
+// });
+
+// const updateApplicationStatus = asyncHandler(async (req, res) => {
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//         res.status(400);
+//         throw new Error('Validation failed', { cause: errors.array() });
+//     }
+
+//     const { status } = req.body;
+//     const { id } = req.params;
+//     const { organization, name: actorName } = req.user;
+
+//     const application = await Application.findOneAndUpdate(
+//         { _id: id, organization: organization, status: 'Pending' },
+//         { status: status },
+//         { new: false }
+//     ).populate('tenant property');
+
+//     if (!application) {
+//         res.status(404);
+//         throw new Error('Pending application not found or you are not authorized.');
+//     }
+
+//     if (status === 'Approved') {
+//         const existingLease = await Lease.findOne({ property: application.property._id, status: 'active' });
+//         if (existingLease) {
+//             application.status = 'Pending';
+//             await application.save();
+//             res.status(409);
+//             throw new Error('This property has already been assigned an active lease.');
+//         }
+
+//         await Lease.create({
+//             property: application.property._id,
+//             tenant: application.tenant._id,
+//             organization: application.organization,
+//             startDate: application.requestedStartDate || new Date(),
+//             endDate: application.requestedEndDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
+//             rentAmount: application.property.rentAmount,
+//             status: 'active'
+//         });
+
+//         await User.findByIdAndUpdate(application.tenant._id, {
+//             organization: application.organization
+//         });
+//     }
+
+//     await LogEntry.create({
+//         organization,
+//         actor: actorName,
+//         type: 'System',
+//         message: `Application for ${application.tenant.name} was ${status.toLowerCase()}`,
+//         tenant: application.tenant._id,
+//         property: application.property._id,
+//     });
+
+//     const finalApplicationState = application.toObject();
+//     finalApplicationState.status = status;
+
+//     res.status(200).json(finalApplicationState);
+// });
 
 module.exports = {
     createApplication,
-    getApplications,
+    getAllApplications,
     updateApplicationStatus,
+    getApplicationSummary,
 };
 
 // const asyncHandler = require('express-async-handler');

@@ -1,144 +1,349 @@
-import React, { useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { getLandlordRequests, updateRequest, deleteRequest, reset } from '../features/maintenance/maintenanceSlice';
-import { toast } from 'react-toastify';
+/**
+ * LandLordMaintenancePage.jsx
+ * This page is a command center for landlords to manage all maintenance requests.
+ * It features a filterable data table and actions to update request statuses.
+ */
+import React, { useState, useEffect, useMemo } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import {
+  getLandlordRequests,
+  updateRequest,
+} from "../features/maintenance/maintenanceSlice";
+import { toast } from "react-toastify";
 
-// Import the necessary shadcn/ui components
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+// --- UI & Icon Imports ---
+import { Card } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
+import { format } from "date-fns";
 
-function LandLordMaintenancePage() {
-    const dispatch = useDispatch();
-    const { requests, isLoading, isError, isSuccess, message } = useSelector((state) => state.maintenance);
+const LandLordMaintenancePage = () => {
+  const dispatch = useDispatch();
+  const { requests, isLoading } = useSelector((state) => state.maintenance);
 
-    useEffect(() => {
-        // Fetch initial data
-        dispatch(getLandlordRequests());
-        
-        // Cleanup function to reset state when the component unmounts
-        return () => {
-            dispatch(reset());
-        };
-    }, [dispatch]); // Only run this effect once on mount
+  // --- State for Filtering ---
+  const [statusFilter, setStatusFilter] = useState("All");
 
-    useEffect(() => {
-        // This effect handles showing error toasts when they occur
-        if (isError) {
-            toast.error(message || 'An error occurred.');
-        }
-    }, [isError, message]);
+  useEffect(() => {
+    dispatch(getLandlordRequests());
+  }, [dispatch]);
 
-    const handleStatusChange = (id, newStatus) => {
-        dispatch(updateRequest({ id, status: newStatus }))
-            .unwrap()
-            .then(() => toast.success(`Request updated to "${newStatus}"`))
-            .catch((error) => toast.error(error.message || 'Failed to update status.'));
-    };
+  const handleStatusUpdate = (id, status) => {
+    dispatch(updateRequest({ id, status }))
+      .unwrap()
+      .then(() => toast.success(`Request status updated to "${status}"`))
+      .catch((err) => toast.error(err.message || "Failed to update status"));
+  };
 
-    const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to permanently delete this request?')) {
-            dispatch(deleteRequest(id))
-                .unwrap()
-                .then(() => toast.success("Request deleted successfully."))
-                .catch((error) => toast.error(error.message || 'Failed to delete request.'));
-        }
-    };
+  // Use useMemo to efficiently filter requests only when the source list or filter changes
+  const filteredRequests = useMemo(() => {
+    if (!requests) return [];
+    if (statusFilter === "All") return requests;
+    return requests.filter((req) => req.status === statusFilter);
+  }, [requests, statusFilter]);
 
-    // A cleaner loading state
-    if (isLoading && requests.length === 0) {
-        return <div className="text-center p-10">Loading requests...</div>;
+  // Helper to determine the badge color based on status
+  const getStatusBadgeVariant = (status) => {
+    switch (status) {
+      case "Pending":
+        return "destructive";
+      case "In Progress":
+        return "secondary";
+      case "Completed":
+        return "default";
+      default:
+        return "outline";
     }
+  };
 
-    return (
-        <div className="space-y-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Maintenance Requests</CardTitle>
-                    <CardDescription>
-                        View and manage all maintenance requests from your tenants.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Property</TableHead>
-                                <TableHead>Issue Description</TableHead>
-                                <TableHead>Tenant</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {requests && requests.length > 0 ? (
-                                requests.map(req => (
-                                    <TableRow key={req._id}>
-                                        <TableCell>{new Date(req.createdAt).toLocaleDateString()}</TableCell>
-                                        <TableCell className="font-medium">{req.property?.address?.street || 'N/A'}</TableCell>
-                                        <TableCell className="max-w-xs truncate">{req.description}</TableCell>
-                                        <TableCell>{req.tenant?.name || 'N/A'}</TableCell>
-                                        <TableCell>
-                                            {/* Badge component for better visual status */}
-                                            <Badge variant={
-                                                req.status === 'Completed' ? 'default' : 
-                                                req.status === 'In Progress' ? 'secondary' : 'destructive'
-                                            }>
-                                                {req.status}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            {/* DropdownMenu for a cleaner action interface */}
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" className="h-8 w-8 p-0">
-                                                        <span className="sr-only">Open menu</span>
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                    <DropdownMenuItem onClick={() => handleStatusChange(req._id, 'Pending')}>
-                                                        Mark as Pending
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleStatusChange(req._id, 'In Progress')}>
-                                                        Mark as In Progress
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleStatusChange(req._id, 'Completed')}>
-                                                        Mark as Completed
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem 
-                                                        className="text-destructive focus:text-destructive"
-                                                        onClick={() => handleDelete(req._id)}
-                                                    >
-                                                        Delete Request
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan="6" className="h-24 text-center text-muted-foreground">
-                                        No maintenance requests found.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
+  return (
+    <div className="space-y-6 p-4 md:p-8">
+      <header>
+        <h1 className="text-3xl font-bold">Maintenance Hub</h1>
+        <p className="text-muted-foreground">
+          Track and manage all maintenance requests.
+        </p>
+      </header>
+
+      <div className="flex items-center gap-4">
+        <div className="w-full sm:w-48">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Filter by status..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All">All Statuses</SelectItem>
+              <SelectItem value="Pending">Pending</SelectItem>
+              <SelectItem value="In Progress">In Progress</SelectItem>
+              <SelectItem value="Completed">Completed</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-    );
-}
+      </div>
+
+      <Card className="border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Date</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Tenant</TableHead>
+              <TableHead>Property</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading && filteredRequests.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan="6" className="h-24 text-center">
+                  Loading requests...
+                </TableCell>
+              </TableRow>
+            ) : filteredRequests.length > 0 ? (
+              filteredRequests.map((req) => (
+                <TableRow key={req._id}>
+                  <TableCell className="font-medium">
+                    {format(new Date(req.createdAt), "MMM dd, yyyy")}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={getStatusBadgeVariant(req.status)}>
+                      {req.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{req.tenant?.name || "N/A"}</TableCell>
+                  <TableCell>
+                    {req.property?.address?.street || "N/A"}
+                  </TableCell>
+                  <TableCell
+                    className="max-w-xs truncate"
+                    title={req.description}
+                  >
+                    {req.description}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() =>
+                            handleStatusUpdate(req._id, "In Progress")
+                          }
+                          disabled={
+                            req.status === "In Progress" ||
+                            req.status === "Completed"
+                          }
+                        >
+                          Mark as In Progress
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleStatusUpdate(req._id, "Pending")}
+                          disabled={
+                            req.status === "Pending" ||
+                            req.status === "Completed"
+                          }
+                        >
+                          Mark as Pending
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() =>
+                            handleStatusUpdate(req._id, "Completed")
+                          }
+                          disabled={req.status === "Completed"}
+                        >
+                          Mark as Completed
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan="6"
+                  className="h-24 text-center text-muted-foreground"
+                >
+                  No maintenance requests found for the selected filter.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </Card>
+    </div>
+  );
+};
 
 export default LandLordMaintenancePage;
+
+// import React, { useEffect } from 'react';
+// import { useSelector, useDispatch } from 'react-redux';
+// import { getLandlordRequests, updateRequest, deleteRequest, reset } from '../features/maintenance/maintenanceSlice';
+// import { toast } from 'react-toastify';
+
+// // Import the necessary shadcn/ui components
+// import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+// import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+// import { Badge } from "@/components/ui/badge";
+// import { Button } from "@/components/ui/button";
+// import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+// import { MoreHorizontal } from "lucide-react";
+
+// function LandLordMaintenancePage() {
+//     const dispatch = useDispatch();
+//     const { requests, isLoading, isError, isSuccess, message } = useSelector((state) => state.maintenance);
+
+//     useEffect(() => {
+//         // Fetch initial data
+//         dispatch(getLandlordRequests());
+
+//         // Cleanup function to reset state when the component unmounts
+//         return () => {
+//             dispatch(reset());
+//         };
+//     }, [dispatch]); // Only run this effect once on mount
+
+//     useEffect(() => {
+//         // This effect handles showing error toasts when they occur
+//         if (isError) {
+//             toast.error(message || 'An error occurred.');
+//         }
+//     }, [isError, message]);
+
+//     const handleStatusChange = (id, newStatus) => {
+//         dispatch(updateRequest({ id, status: newStatus }))
+//             .unwrap()
+//             .then(() => toast.success(`Request updated to "${newStatus}"`))
+//             .catch((error) => toast.error(error.message || 'Failed to update status.'));
+//     };
+
+//     const handleDelete = (id) => {
+//         if (window.confirm('Are you sure you want to permanently delete this request?')) {
+//             dispatch(deleteRequest(id))
+//                 .unwrap()
+//                 .then(() => toast.success("Request deleted successfully."))
+//                 .catch((error) => toast.error(error.message || 'Failed to delete request.'));
+//         }
+//     };
+
+//     // A cleaner loading state
+//     if (isLoading && requests.length === 0) {
+//         return <div className="text-center p-10">Loading requests...</div>;
+//     }
+
+//     return (
+//         <div className="space-y-6">
+//             <Card>
+//                 <CardHeader>
+//                     <CardTitle>Maintenance Requests</CardTitle>
+//                     <CardDescription>
+//                         View and manage all maintenance requests from your tenants.
+//                     </CardDescription>
+//                 </CardHeader>
+//                 <CardContent>
+//                     <Table>
+//                         <TableHeader>
+//                             <TableRow>
+//                                 <TableHead>Date</TableHead>
+//                                 <TableHead>Property</TableHead>
+//                                 <TableHead>Issue Description</TableHead>
+//                                 <TableHead>Tenant</TableHead>
+//                                 <TableHead>Status</TableHead>
+//                                 <TableHead className="text-right">Actions</TableHead>
+//                             </TableRow>
+//                         </TableHeader>
+//                         <TableBody>
+//                             {requests && requests.length > 0 ? (
+//                                 requests.map(req => (
+//                                     <TableRow key={req._id}>
+//                                         <TableCell>{new Date(req.createdAt).toLocaleDateString()}</TableCell>
+//                                         <TableCell className="font-medium">{req.property?.address?.street || 'N/A'}</TableCell>
+//                                         <TableCell className="max-w-xs truncate">{req.description}</TableCell>
+//                                         <TableCell>{req.tenant?.name || 'N/A'}</TableCell>
+//                                         <TableCell>
+//                                             {/* Badge component for better visual status */}
+//                                             <Badge variant={
+//                                                 req.status === 'Completed' ? 'default' :
+//                                                 req.status === 'In Progress' ? 'secondary' : 'destructive'
+//                                             }>
+//                                                 {req.status}
+//                                             </Badge>
+//                                         </TableCell>
+//                                         <TableCell className="text-right">
+//                                             {/* DropdownMenu for a cleaner action interface */}
+//                                             <DropdownMenu>
+//                                                 <DropdownMenuTrigger asChild>
+//                                                     <Button variant="ghost" className="h-8 w-8 p-0">
+//                                                         <span className="sr-only">Open menu</span>
+//                                                         <MoreHorizontal className="h-4 w-4" />
+//                                                     </Button>
+//                                                 </DropdownMenuTrigger>
+//                                                 <DropdownMenuContent align="end">
+//                                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
+//                                                     <DropdownMenuItem onClick={() => handleStatusChange(req._id, 'Pending')}>
+//                                                         Mark as Pending
+//                                                     </DropdownMenuItem>
+//                                                     <DropdownMenuItem onClick={() => handleStatusChange(req._id, 'In Progress')}>
+//                                                         Mark as In Progress
+//                                                     </DropdownMenuItem>
+//                                                     <DropdownMenuItem onClick={() => handleStatusChange(req._id, 'Completed')}>
+//                                                         Mark as Completed
+//                                                     </DropdownMenuItem>
+//                                                     <DropdownMenuSeparator />
+//                                                     <DropdownMenuItem
+//                                                         className="text-destructive focus:text-destructive"
+//                                                         onClick={() => handleDelete(req._id)}
+//                                                     >
+//                                                         Delete Request
+//                                                     </DropdownMenuItem>
+//                                                 </DropdownMenuContent>
+//                                             </DropdownMenu>
+//                                         </TableCell>
+//                                     </TableRow>
+//                                 ))
+//                             ) : (
+//                                 <TableRow>
+//                                     <TableCell colSpan="6" className="h-24 text-center text-muted-foreground">
+//                                         No maintenance requests found.
+//                                     </TableCell>
+//                                 </TableRow>
+//                             )}
+//                         </TableBody>
+//                     </Table>
+//                 </CardContent>
+//             </Card>
+//         </div>
+//     );
+// }
+
+// export default LandLordMaintenancePage;
 
 // import React, { useEffect } from 'react';
 // import { useSelector, useDispatch } from 'react-redux';
@@ -154,10 +359,10 @@ export default LandLordMaintenancePage;
 //         if (isError) {
 //             toast.error(message);
 //         }
-        
+
 //         // --- 2. THE DISPATCH FIX: Calling the correctly named 'getLandlordRequests' ---
 //         dispatch(getLandlordRequests());
-        
+
 //         return () => {
 //             dispatch(reset());
 //         };
@@ -202,8 +407,8 @@ export default LandLordMaintenancePage;
 //                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p className="text-gray-900 whitespace-no-wrap">{req.description}</p></td>
 //                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{req.tenant?.name || 'N/A'}</td>
 //                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-//                                     <select 
-//                                         value={req.status} 
+//                                     <select
+//                                         value={req.status}
 //                                         onChange={(e) => handleStatusChange(req._id, e.target.value)}
 //                                         className="border-gray-300 rounded-md shadow-sm p-2 bg-white"
 //                                     >
@@ -229,7 +434,6 @@ export default LandLordMaintenancePage;
 // }
 
 // export default LandlordMaintenancePage;
-
 
 // // import React, { useEffect } from 'react';
 // // import { useSelector, useDispatch } from 'react-redux';

@@ -27,6 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import ReliabilityScoreBadge from "@/components/tenants/ReliabilityScoreBadge";
 import { Mail, Phone } from "lucide-react";
 
 const TenantDetailPage = () => {
@@ -58,6 +59,7 @@ const TenantDetailPage = () => {
         </Avatar>
         <div>
           <h1 className="text-4xl font-bold">{tenant.name}</h1>
+          <ReliabilityScoreBadge tenantId={tenant._id} />
           <div className="flex items-center gap-6 text-muted-foreground mt-2">
             <span className="flex items-center gap-2">
               <Mail className="h-4 w-4" /> {tenant.email}

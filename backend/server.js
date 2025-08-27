@@ -314,6 +314,9 @@ const landlordLogRoutes = require('./routes/landlord/logRoutes');
 const tenantLeaseRoutes = require('./routes/tenant/leaseRoutes');
 const tenantMaintenanceRoutes = require('./routes/tenant/maintenanceRoutes');
 const tenantPaymentRoutes = require('./routes/tenant/paymentRoutes');
+
+const stripeWebhookRoutes = require('./routes/stripeWebhookRoutes'); // 1. Import the new route
+
 // Controller import for webhook
 const { handleStripeWebhook } = require('./controllers/landlord/paymentController');
 // Error handling middleware import
@@ -359,6 +362,8 @@ app.use('/api/landlord/logs', landlordLogRoutes);
 app.use('/api/tenant/lease', tenantLeaseRoutes);
 app.use('/api/tenant/maintenance-requests', tenantMaintenanceRoutes);
 app.use('/api/tenant/payments', tenantPaymentRoutes);
+
+app.use('/api/stripe', stripeWebhookRoutes); // 2. Use the new route
 
 // --- ERROR HANDLING MIDDLEWARE (MUST be last) ---
 app.use(notFound);

@@ -20,7 +20,12 @@ const assignTenantToLease = asyncHandler(async (req, res) => {
 
     // applicationId is now optional, for when this is triggered from an application approval
     const { propertyId, tenantId, applicationId, startDate, endDate, rentAmount, securityDeposit } = req.body;
-
+    if (!tenantId) {
+        res.status(400);
+        throw new Error('Tenant ID is required but was not provided.');
+    }
+    
+    
     // 2. Verify the property exists and belongs to the landlord
     const property = await Property.findById(propertyId);
     if (!property || property.organization.toString() !== req.user.organization.toString()) {
@@ -48,6 +53,7 @@ const assignTenantToLease = asyncHandler(async (req, res) => {
     const lease = await Lease.create({
         property: propertyId,
         tenant: tenantId,
+        landlord: property.owner, // Assign landlord from property
         organization: req.user.organization,
         startDate,
         endDate,
@@ -85,6 +91,100 @@ const assignTenantToLease = asyncHandler(async (req, res) => {
 module.exports = { 
     assignTenantToLease 
 };
+
+
+// const { validationResult } = require('express-validator'); 
+// const asyncHandler = require('express-async-handler');
+// const Lease = require('../../models/Lease');
+// const User = require('../../models/User');
+// const Property = require('../../models/Property');
+// const LogEntry = require('../../models/LogEntry');
+// const Application = require('../../models/Application'); // Ensure Application model is imported
+
+// /**
+//  * @desc    Assign a new lease to a tenant and property.
+//  * @route   POST /api/landlord/leases/assign
+//  * @access  Private (Landlord Only)
+//  */
+// const assignTenantToLease = asyncHandler(async (req, res) => {
+//     // 1. Validate incoming data from the route
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//         return res.status(400).json({ errors: errors.array() });
+//     }
+
+//     // applicationId is now optional, for when this is triggered from an application approval
+//     const { propertyId, tenantId, applicationId, startDate, endDate, rentAmount, securityDeposit } = req.body;
+//     if (!tenantId) {
+//         res.status(400);
+//         throw new Error('Tenant ID is required but was not provided.');
+//     }
+    
+    
+//     // 2. Verify the property exists and belongs to the landlord
+//     const property = await Property.findById(propertyId);
+//     if (!property || property.organization.toString() !== req.user.organization.toString()) {
+//         res.status(404);
+//         throw new Error('Property not found or you are not authorized');
+//     }
+
+//     // 3. Check if the property is already rented
+//     if (property.status === 'Rented') {
+//         const existingLease = await Lease.findOne({ property: propertyId, status: 'active' });
+//         if (existingLease) {
+//             res.status(409); // 409 Conflict
+//             throw new Error('This property is already assigned to an active lease.');
+//         }
+//     }
+    
+//     // 4. Verify the tenant exists
+//     const tenant = await User.findById(tenantId);
+//     if (!tenant || tenant.role !== 'tenant') {
+//         res.status(404);
+//         throw new Error('No tenant found with this ID.');
+//     }
+
+//     // 5. Create the new Lease document
+//     const lease = await Lease.create({
+//         property: propertyId,
+//         tenant: tenantId,
+//         organization: req.user.organization,
+//         startDate,
+//         endDate,
+//         rentAmount,
+//         securityDeposit, // Added security deposit
+//         status: new Date(startDate) > new Date() ? 'Upcoming' : 'active' // Make status dynamic
+//     });
+
+//     // 6. Perform related updates in parallel for efficiency
+//     await Promise.all([
+//         // Update the property's status to 'Rented'
+//         Property.findByIdAndUpdate(propertyId, { status: 'Rented' }),
+        
+//         // If an applicationId was provided, update its status to 'Completed'
+//         applicationId ? Application.findByIdAndUpdate(applicationId, { status: 'Completed' }) : Promise.resolve(),
+        
+//         // Create a log entry for this event
+//         LogEntry.create({
+//             organization: req.user.organization,
+//             actor: req.user.name,
+//             type: 'Lease',
+//             message: `Assigned new lease to tenant ${tenant.name} for property ${property.address.street}`,
+//             property: propertyId,
+//             tenant: tenantId,
+//         })
+//     ]);
+
+//     // 7. Populate the new lease with details for the response
+//     const populatedLease = await Lease.findById(lease._id).populate('property tenant');
+
+//     res.status(201).json({ message: 'Tenant successfully assigned and lease created.', lease: populatedLease });
+// });
+
+
+// module.exports = { 
+//     assignTenantToLease 
+// };
 
 
 // // backend/controllers/landlord/leaseController.js

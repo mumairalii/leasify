@@ -41,6 +41,7 @@ import {
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { MoreHorizontal } from "lucide-react";
 import AssignLeaseForm from "../components/forms/AssignLeaseForm";
+import ReliabilityScoreBadge from "@/components/tenants/ReliabilityScoreBadge";
 
 const LandLordAplicationsPage = () => {
   const dispatch = useDispatch();
@@ -161,7 +162,15 @@ const LandLordAplicationsPage = () => {
                     <TableCell>
                       {format(new Date(app.createdAt), "MMM dd, yyyy")}
                     </TableCell>
-                    <TableCell>{app.applicant?.name || "N/A"}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">
+                          {app.applicant?.name || "N/A"}
+                        </span>
+                        <ReliabilityScoreBadge tenantId={app.applicant?._id} />
+                      </div>
+                    </TableCell>
+                    {/* <TableCell>{app.applicant?.name || "N/A"}</TableCell> */}
                     <TableCell>
                       {app.property?.address?.street || "N/A"}
                     </TableCell>

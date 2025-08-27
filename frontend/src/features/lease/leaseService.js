@@ -10,6 +10,11 @@ const getMyLease = async () => {
     return response.data;
 };
 
+const getLeaseDetails = async () => {
+    const response = await api.get(TENANT_API_URL);
+    return response.data;
+};
+
 const assignLease = async (leaseData) => {
     const response = await api.post(LANDLORD_API_URL + 'assign', leaseData);
     return response.data;
@@ -17,6 +22,7 @@ const assignLease = async (leaseData) => {
 
 const leaseService = {
     getMyLease,
+    getLeaseDetails,
     assignLease,
 };
 

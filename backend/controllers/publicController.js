@@ -1,6 +1,8 @@
 // tenant_manage/backend/controllers/publicController.js
 const Property = require('../models/Property');
 const Lease = require('../models/Lease'); // Import Lease model
+const asyncHandler = require('express-async-handler'); // <-- THIS IS THE FIX
+
 
 const getPublicProperties = async (req, res) => {
     try {
@@ -21,6 +23,31 @@ const getPublicProperties = async (req, res) => {
     }
 };
 
+/**
+ * @desc    Get recommended properties based on a given property's city and type.
+ * @route   GET /api/properties/:id/recommendations
+ * @access  Public
+ */
+const getRecommendedProperties = asyncHandler(async (req, res) => {
+    const property = await Property.findById(req.params.id);
+
+    if (!property) {
+        res.status(404);
+        throw new Error('Property not found');
+    }
+
+    // Find other properties that are listed, in the same city, of the same type,
+    // and are not the property being currently viewed.
+    const recommendations = await Property.find({
+        isListed: true,
+        "address.city": property.address.city,
+        propertyType: property.propertyType,
+        _id: { $ne: req.params.id } // Exclude the current property
+    }).limit(3); // Limit to 3 recommendations for a clean UI
+
+    res.status(200).json(recommendations);
+});
+
 const getPublicPropertyById = async (req, res) => {
     try {
         const property = await Property.findOne({ _id: req.params.id, isListed: true }).lean();
@@ -37,7 +64,7 @@ const getPublicPropertyById = async (req, res) => {
     }
 };
 
-module.exports = { getPublicProperties, getPublicPropertyById };
+module.exports = { getPublicProperties, getPublicPropertyById, getRecommendedProperties };
 // // tenant_manage/backend/controllers/publicController.js
 // const Property = require('../models/Property');
 // const Lease = require('../models/Lease'); // Import Lease model

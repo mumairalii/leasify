@@ -140,6 +140,10 @@ const getUpcomingPayments = asyncHandler(async (req, res) => {
  */
 const getTenantById = asyncHandler(async (req, res) => {
     const { id } = req.params;
+    if (!id || id === 'undefined') {
+        res.status(400);
+        throw new Error('Tenant ID is required');
+    }
     const organizationId = req.user.organization;
 
     const tenant = await User.findOne({ _id: id, organization: organizationId, role: 'tenant' }).lean();
@@ -169,7 +173,76 @@ const getTenantById = asyncHandler(async (req, res) => {
     res.status(200).json(tenantDetails);
 });
 
+/**
+ * @desc    Calculate a weighted reliability score for a single tenant based on payment history.
+ * @route   GET /api/landlord/tenants/:id/reliability-score
+ * @access  Private (Landlord Only)
+ */
+const getTenantReliabilityScore = asyncHandler(async (req, res) => {
+    const { id } = req.params;
 
+    const leases = await Lease.find({ tenant: id, organization: req.user.organization }).lean();
+    if (!leases.length) {
+        return res.status(200).json({ score: null, message: "No lease history found." });
+    }
+
+    const payments = await Payment.find({ tenant: id }).sort({ paymentDate: 'asc' }).lean();
+
+    let totalPossiblePoints = 0;
+    let totalEarnedPoints = 0;
+    const gracePeriodDays = 3;
+
+    for (const lease of leases) {
+        const startDate = new Date(lease.startDate);
+        const endDate = new Date(lease.endDate);
+        const today = new Date();
+        
+        // Loop through each month of the lease that has occurred so far.
+        let currentDueDate = new Date(startDate);
+        while (currentDueDate <= today && currentDueDate <= endDate) {
+            totalPossiblePoints += 10; // Each payment period is worth 10 points.
+            
+            const dueDateWithGrace = new Date(currentDueDate);
+            dueDateWithGrace.setDate(dueDateWithGrace.getDate() + gracePeriodDays);
+
+            // Define the start and end of the payment cycle for this due date.
+            const cycleStart = new Date(currentDueDate.getFullYear(), currentDueDate.getMonth(), 1);
+            const cycleEnd = new Date(currentDueDate.getFullYear(), currentDueDate.getMonth() + 1, 0);
+
+            const paymentForCycle = payments.find(p => {
+                const paymentDate = new Date(p.paymentDate);
+                return paymentDate >= cycleStart && paymentDate <= cycleEnd;
+            });
+
+            if (paymentForCycle) {
+                const paymentDate = new Date(paymentForCycle.paymentDate);
+                const daysLate = Math.floor((paymentDate - currentDueDate) / (1000 * 60 * 60 * 24));
+
+                if (paymentDate <= dueDateWithGrace) {
+                    totalEarnedPoints += 10; // On-time
+                } else if (daysLate <= 15) {
+                    totalEarnedPoints += 6; // Late
+                } else {
+                    totalEarnedPoints += 2; // Very late
+                }
+            } // If no paymentForCycle, 0 points are earned for that period.
+
+            // Move to the next month's due date
+            currentDueDate.setMonth(currentDueDate.getMonth() + 1);
+        }
+    }
+
+    if (totalPossiblePoints === 0) {
+        return res.status(200).json({ score: 100, message: "No payments have been due yet." });
+    }
+
+    const score = Math.round((totalEarnedPoints / totalPossiblePoints) * 100);
+
+    res.status(200).json({
+        score: score,
+        message: `Score based on ${totalEarnedPoints} out of ${totalPossiblePoints} possible points.`
+    });
+});
 
 /**
  * @desc    Get all tenants for the organization with their most recent lease to power the "All Tenants" page.
@@ -219,7 +292,301 @@ module.exports = {
     getAllTenants,
     getTenantById,
     getUpcomingPayments,
+    getTenantReliabilityScore,
 };
+
+// const asyncHandler = require('express-async-handler');
+// const Lease = require('../../models/Lease');
+// const User = require('../../models/User');
+// const mongoose = require('mongoose');
+// const Payment = require('../../models/Payment');
+// const MaintenanceRequest = require('../../models/MaintenanceRequest');
+// const LogEntry = require('../../models/LogEntry');
+
+
+// /**
+//  * @desc    Get tenants with overdue rent, including amount and days overdue.
+//  * @route   GET /api/landlord/tenants/overdue
+//  * @access  Private (Landlord Only)
+//  */
+// const getOverdueTenants = asyncHandler(async (req, res) => {
+//     const organizationId = new mongoose.Types.ObjectId(req.user.organization);
+
+//     const overdueTenants = await Lease.aggregate([
+//         // Stage 1: Find only active leases for the landlord's organization
+//         { $match: { organization: organizationId, status: 'active' } },
+
+//         // Stage 2: Join with payments
+//         { $lookup: { from: 'payments', localField: '_id', foreignField: 'lease', as: 'paymentHistory' } },
+
+//         // --- THIS IS THE CORRECTED LOGIC ---
+//         // Stage 3: Calculate how many rent payments should have been made to date.
+//         {
+//             $addFields: {
+//                 totalPaid: { $sum: '$paymentHistory.amount' },
+//                 // Calculate the number of payment periods that have passed since the lease started.
+//                 // The +1 ensures we account for the very first month's rent.
+//                 paymentPeriodsPassed: { 
+//                     $max: [1, { $add: [{ $dateDiff: { startDate: "$startDate", endDate: new Date(), unit: "month" } }, 1] }]
+//                 }
+//             }
+//         },
+//         // Stage 4: Calculate the total rent that should have been collected.
+//         {
+//             $addFields: {
+//                 totalRentDue: { $multiply: ["$paymentPeriodsPassed", "$rentAmount"] }
+//             }
+//         },
+//         {
+//             $addFields: {
+//                 amountOwed: { $subtract: ["$totalRentDue", "$totalPaid"] }
+//             }
+//         },
+//         // --- END OF FIX ---
+
+//         // Stage 5: Filter for only those who actually owe money
+//         { $match: { amountOwed: { $gt: 0 } } },
+
+//         // Stage 6: Calculate days overdue based on the last payment date
+//         {
+//             $addFields: {
+//                 lastPaymentDate: { $max: "$paymentHistory.paymentDate" },
+//             }
+//         },
+//         {
+//             $addFields: {
+//                 // If no payment has ever been made, the overdue days start from the lease start date.
+//                 lastEffectiveDate: { $ifNull: [ "$lastPaymentDate", "$startDate" ] }
+//             }
+//         },
+
+//         // Stages 7-9: Lookups and final data shaping
+//         { $lookup: { from: 'users', localField: 'tenant', foreignField: '_id', as: 'tenantInfo' } },
+//         { $lookup: { from: 'properties', localField: 'property', foreignField: '_id', as: 'propertyInfo' } },
+//         {
+//             $project: {
+//                 _id: 0,
+//                 leaseId: "$_id",
+//                 tenantId: { $arrayElemAt: ["$tenantInfo._id", 0] },
+//                 name: { $arrayElemAt: ["$tenantInfo.name", 0] },
+//                 unit: { $arrayElemAt: ["$propertyInfo.address.street", 0] },
+//                 amount: "$amountOwed",
+//                 days: { $max: [1, { $dateDiff: { startDate: "$lastEffectiveDate", endDate: new Date(), unit: "day" } }] }
+//             }
+//         },
+//         { $sort: { amount: -1 } }
+//     ]);
+
+//     res.status(200).json(overdueTenants);
+// });
+
+
+// /**
+//  * @desc    Get all upcoming tenant payments.
+//  * @route   GET /api/landlord/tenants/upcoming
+//  * @access  Private (Landlord Only)
+//  */
+// const getUpcomingPayments = asyncHandler(async (req, res) => {
+//     const organizationId = new mongoose.Types.ObjectId(req.user.organization);
+//     const today = new Date();
+//     today.setHours(0, 0, 0, 0); // Normalize to start of the day
+
+//     const activeLeases = await Lease.find({
+//         organization: organizationId,
+//         status: 'active'
+//     })
+//     .populate('tenant', 'name')
+//     .populate('property', 'address')
+//     .lean();
+
+//     const upcoming = activeLeases.map(lease => {
+//         const leaseStartDate = new Date(lease.startDate);
+//         const dayOfMonthDue = leaseStartDate.getDate();
+        
+//         let nextDueDate = new Date(today.getFullYear(), today.getMonth(), dayOfMonthDue);
+//         // If the due date for this month has already passed, check next month's
+//         if (nextDueDate < today) {
+//             nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+//         }
+
+//         return { ...lease, nextDueDate };
+//     })
+//     // Remove the date filter to show all future payments
+//     .filter(lease => lease.nextDueDate >= today)
+//     .map(lease => ({
+//         tenantId: lease.tenant._id,
+//         name: lease.tenant.name,
+//         unit: lease.property.address.street,
+//         amount: lease.rentAmount,
+//         dueDate: lease.nextDueDate,
+//         // Calculate the days remaining until the due date
+//         daysUntilDue: Math.ceil((new Date(lease.nextDueDate) - today) / (1000 * 60 * 60 * 24))
+//     }))
+//     // Sort by closest due date first
+//     .sort((a, b) => a.daysUntilDue - b.daysUntilDue);
+
+//     res.status(200).json(upcoming);
+// });
+
+
+
+// /**
+//  * @desc    Get a single tenant by ID with all their related data
+//  * @route   GET /api/tenants/:id
+//  * @access  Private (Landlord Only)
+//  */
+// const getTenantById = asyncHandler(async (req, res) => {
+//     const { id } = req.params;
+//     const organizationId = req.user.organization;
+
+//     const tenant = await User.findOne({ _id: id, organization: organizationId, role: 'tenant' }).lean();
+
+//     if (!tenant) {
+//         res.status(404);
+//         throw new Error('Tenant not found or not part of your organization');
+//     }
+
+//     // Fetch all related data in parallel, now including the communication logs
+//     const [leases, payments, maintenanceRequests, logs] = await Promise.all([
+//         Lease.find({ tenant: id }).populate('property', 'address').sort({ startDate: -1 }).lean(),
+//         Payment.find({ tenant: id }).sort({ paymentDate: -1 }).lean(),
+//         MaintenanceRequest.find({ tenant: id }).populate('property', 'address').sort({ createdAt: -1 }).lean(),
+//         // --- THIS IS THE NEW ADDITION ---
+//         LogEntry.find({ tenant: id, type: 'Communication' }).sort({ createdAt: -1 }).lean()
+//     ]);
+//      // Assemble the complete response object
+//     const tenantDetails = {
+//         ...tenant,
+//         leases,
+//         payments,
+//         maintenanceRequests,
+//         logs, // <-- Add logs to the response
+//     };
+
+//     res.status(200).json(tenantDetails);
+// });
+
+// /**
+//  * @desc    Calculate a weighted reliability score for a single tenant based on payment history.
+//  * @route   GET /api/landlord/tenants/:id/reliability-score
+//  * @access  Private (Landlord Only)
+//  */
+// const getTenantReliabilityScore = asyncHandler(async (req, res) => {
+//     const { id } = req.params;
+
+//     const leases = await Lease.find({ tenant: id, organization: req.user.organization }).lean();
+//     if (!leases.length) {
+//         return res.status(200).json({ score: null, message: "No lease history found." });
+//     }
+
+//     const payments = await Payment.find({ tenant: id }).sort({ paymentDate: 'asc' }).lean();
+
+//     let totalPossiblePoints = 0;
+//     let totalEarnedPoints = 0;
+//     const gracePeriodDays = 3;
+
+//     for (const lease of leases) {
+//         const startDate = new Date(lease.startDate);
+//         const endDate = new Date(lease.endDate);
+//         const today = new Date();
+        
+//         // Loop through each month of the lease that has occurred so far.
+//         let currentDueDate = new Date(startDate);
+//         while (currentDueDate <= today && currentDueDate <= endDate) {
+//             totalPossiblePoints += 10; // Each payment period is worth 10 points.
+            
+//             const dueDateWithGrace = new Date(currentDueDate);
+//             dueDateWithGrace.setDate(dueDateWithGrace.getDate() + gracePeriodDays);
+
+//             // Define the start and end of the payment cycle for this due date.
+//             const cycleStart = new Date(currentDueDate.getFullYear(), currentDueDate.getMonth(), 1);
+//             const cycleEnd = new Date(currentDueDate.getFullYear(), currentDueDate.getMonth() + 1, 0);
+
+//             const paymentForCycle = payments.find(p => {
+//                 const paymentDate = new Date(p.paymentDate);
+//                 return paymentDate >= cycleStart && paymentDate <= cycleEnd;
+//             });
+
+//             if (paymentForCycle) {
+//                 const paymentDate = new Date(paymentForCycle.paymentDate);
+//                 const daysLate = Math.floor((paymentDate - currentDueDate) / (1000 * 60 * 60 * 24));
+
+//                 if (paymentDate <= dueDateWithGrace) {
+//                     totalEarnedPoints += 10; // On-time
+//                 } else if (daysLate <= 15) {
+//                     totalEarnedPoints += 6; // Late
+//                 } else {
+//                     totalEarnedPoints += 2; // Very late
+//                 }
+//             } // If no paymentForCycle, 0 points are earned for that period.
+
+//             // Move to the next month's due date
+//             currentDueDate.setMonth(currentDueDate.getMonth() + 1);
+//         }
+//     }
+
+//     if (totalPossiblePoints === 0) {
+//         return res.status(200).json({ score: 100, message: "No payments have been due yet." });
+//     }
+
+//     const score = Math.round((totalEarnedPoints / totalPossiblePoints) * 100);
+
+//     res.status(200).json({
+//         score: score,
+//         message: `Score based on ${totalEarnedPoints} out of ${totalPossiblePoints} possible points.`
+//     });
+// });
+
+// /**
+//  * @desc    Get all tenants for the organization with their most recent lease to power the "All Tenants" page.
+//  * @route   GET /api/tenants
+//  * @access  Private (Landlord Only)
+//  */
+// const getAllTenants = asyncHandler(async (req, res) => {
+//     const organizationId = req.user.organization;
+
+//     // 1. Get all users who are tenants in the organization
+//     const tenants = await User.find({ organization: organizationId, role: 'tenant' }).lean();
+//     if (!tenants.length) {
+//         return res.status(200).json([]);
+//     }
+//     const tenantIds = tenants.map(t => t._id);
+
+//     // 2. Find all leases associated with these tenants
+//     const allLeases = await Lease.find({ tenant: { $in: tenantIds } })
+//         .sort({ endDate: -1 }) // Sort by most recent end date
+//         .populate('property', 'address') // Populate property details
+//         .lean();
+
+//     // 3. Create a map to find the MOST RECENT lease for each tenant efficiently
+//     const mostRecentLeaseMap = new Map();
+//     for (const lease of allLeases) {
+//         const tenantId = lease.tenant.toString();
+//         // Since the list is sorted, the first lease we encounter for a tenant is their most recent one
+//         if (!mostRecentLeaseMap.has(tenantId)) {
+//             mostRecentLeaseMap.set(tenantId, lease);
+//         }
+//     }
+
+//     // 4. Map the most recent lease to each tenant
+//     const tenantsWithLeaseData = tenants.map(tenant => {
+//         const mostRecentLease = mostRecentLeaseMap.get(tenant._id.toString()) || null;
+//         return {
+//             ...tenant,
+//             mostRecentLease: mostRecentLease,
+//         };
+//     });
+
+//     res.status(200).json(tenantsWithLeaseData);
+// });
+
+// module.exports = {
+//     getOverdueTenants,
+//     getAllTenants,
+//     getTenantById,
+//     getUpcomingPayments,
+//     getTenantReliabilityScore,
+// };
 
 // const asyncHandler = require('express-async-handler');
 // const Lease = require('../../models/Lease');

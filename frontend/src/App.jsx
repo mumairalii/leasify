@@ -7,6 +7,7 @@ import AppLayout from "./layouts/AppLayout";
 import AuthLayout from "./layouts/AuthLayout";
 // Import Components
 import ProtectedRoute from "./components/ProtectedRoute";
+import { Toaster } from "@/components/ui/sonner";
 
 // Import Pages
 import RegisterPage from "./pages/RegisterPage";
@@ -27,6 +28,9 @@ import LandlordApplicationsPage from "./pages/LandLordAplicationsPage";
 import AddPropertyPage from "./pages/AddPropertyPage";
 import CommunicationLogPage from "./pages/CommunicationLogPage";
 import EditPropertyPage from "./pages/EditPropertyPage";
+import LandlordPaymentsPage from "./pages/LandlordPaymentsPage";
+import PaymentHistoryPage from "./pages/PaymentHistoryPage"; // <-- Import the new page
+import LeasePage from "./pages/LeasePage";
 
 function App() {
   return (
@@ -91,6 +95,14 @@ function App() {
                 }
               />
               <Route
+                path="/landlord/payments"
+                element={
+                  <ProtectedRoute>
+                    <LandlordPaymentsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/landlord/logs/system"
                 element={
                   <ProtectedRoute roles={["landlord"]}>
@@ -111,17 +123,24 @@ function App() {
               />{" "}
               {/* 2. Add the new route here */}
               {/* Tenant Routes */}
+              <Route
+                path="/tenant/payment-history"
+                element={<PaymentHistoryPage />}
+              />{" "}
+              {/* <-- Add the new route */}
               <Route path="/tenant/dashboard" element={<TenantDashboard />} />
               <Route
                 path="/tenant/maintenance/new"
                 element={<TenantMaintenancePage />}
               />
+              <Route path="/tenant/lease" element={<LeasePage />} />
             </Route>
           </Routes>
         </div>
       </Router>
       {/* This container is for toast notifications */}
       <ToastContainer />
+      <Toaster position="top-right" richColors />
     </>
   );
 }

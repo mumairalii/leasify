@@ -10,6 +10,8 @@ const initialState = {
     },
     upcomingPayments: [], // <-- NEW STATE
     isUpcomingLoading: false, // <-- NEW STATE
+     reliabilityScores: {},
+    isScoreLoading: false,
     isLoading: false,
     isError: false,
     message: '',
@@ -39,6 +41,17 @@ export const getTenants = createAsyncThunk('tenants/getAll', async (_, thunkAPI)
 export const getUpcomingPayments = createAsyncThunk('tenants/getUpcoming', async (_, thunkAPI) => {
     try {
         return await tenantService.getUpcomingPayments();
+    } catch (error) {
+        const message = (error.response?.data?.message) || error.message || error.toString();
+        return thunkAPI.rejectWithValue(message);
+    }
+});
+
+export const getTenantReliabilityScore = createAsyncThunk('tenants/getScore', async (tenantId, thunkAPI) => {
+    try {
+        const data = await tenantService.getTenantReliabilityScore(tenantId);
+        // Return both the ID and the data to the reducer
+        return { tenantId, data };
     } catch (error) {
         const message = (error.response?.data?.message) || error.message || error.toString();
         return thunkAPI.rejectWithValue(message);
@@ -100,6 +113,19 @@ export const tenantSlice = createSlice({
     })
     .addCase(getUpcomingPayments.rejected, (state, action) => {
         state.isUpcomingLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+    })
+     .addCase(getTenantReliabilityScore.pending, (state) => {
+        state.isScoreLoading = true;
+    })
+    .addCase(getTenantReliabilityScore.fulfilled, (state, action) => {
+        state.isScoreLoading = false;
+        // Store the score in the cache using the tenantId as the key
+        state.reliabilityScores[action.payload.tenantId] = action.payload.data;
+    })
+    .addCase(getTenantReliabilityScore.rejected, (state, action) => {
+        state.isScoreLoading = false;
         state.isError = true;
         state.message = action.payload;
     });

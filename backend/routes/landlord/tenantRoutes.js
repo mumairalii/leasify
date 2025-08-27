@@ -6,6 +6,7 @@ const {
   getAllTenants,
   getTenantById,
   getUpcomingPayments,
+  getTenantReliabilityScore,
 } = require('../../controllers/landlord/tenantController');
 const { protect } = require('../../middleware/authMiddleware');
 const { isLandlord } = require('../../middleware/roleMiddleware');
@@ -13,6 +14,7 @@ const { isLandlord } = require('../../middleware/roleMiddleware');
 router.use(protect, isLandlord);
 
 // Place specific routes before dynamic routes
+router.get('/:id/reliability-score', getTenantReliabilityScore);
 router.get('/', getAllTenants);
 router.get('/overdue', getOverdueTenants);
 router.get('/upcoming', getUpcomingPayments);

@@ -45,6 +45,66 @@ const propertyService = {
 };
 
 export default propertyService;
+
+
+// import api from '../../services/api';
+// import { stringify } from 'qs';
+
+// const API_URL = 'landlord/properties/';
+
+// // The 'token' argument is no longer needed
+// // const getProperties = async ({ page = 1, limit = 9 } = {}) => {
+// //     // The config object is no longer needed because the interceptor handles the header
+// //     const response = await api.get(API_URL, { params: { page, limit } });
+// //     return response.data;
+// // };
+
+// const getProperties = async (params = {}) => {
+//     const query = stringify(params, { addQueryPrefix: true });
+//     const response = await api.get(`${API_URL}${query}`);
+//     return response.data;
+// };
+// // All other functions are simplified as well
+// const createProperty = async (propertyData) => {
+//     const response = await api.post(API_URL, propertyData);
+//     return response.data;
+// };
+// const getRecommendedProperties = async (propertyId) => {
+//     const response = await api.get(`/properties/public/${propertyId}/recommendations`);
+//     return response.data;
+// };
+
+// const getPublicPropertyById = async (propertyId) => {
+//     const response = await api.get(`/properties/public/${propertyId}`);
+//     return response.data;
+// };
+
+// const updateProperty = async (propertyData) => {
+//     const response = await api.put(API_URL + propertyData._id, propertyData);
+//     return response.data;
+// };
+
+// const deleteProperty = async (propertyId) => {
+//     const response = await api.delete(API_URL + propertyId);
+//     return response.data;
+// };
+// const getPropertyById = async (id) => {
+//     const response = await api.get(`/landlord/properties/${id}`);
+//     return response.data;
+// };
+
+
+// const propertyService = {
+//     createProperty,
+//     getProperties,
+//     updateProperty,
+//     deleteProperty,
+//     getPropertyById,
+//     getRecommendedProperties,
+//     getPublicPropertyById,
+// };
+
+// export default propertyService;
 // import api from '../../services/api';
 
 // const API_URL = 'landlord/properties/';

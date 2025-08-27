@@ -32,14 +32,127 @@ const createPaymentIntent = async (paymentData) => {
         throw error.response?.data?.message || 'Failed to create payment intent';
     }
 };
+const getMyPayments = async () => {
+    const response = await api.get(`${TENANT_API_URL}/my-payments`);
+    return response.data;
+};
+
+const getLandlordPayments = async (queryParams) => {
+  const response = await api.get(LANDLORD_API_URL, { params: queryParams });
+  return response.data;
+};
 
 const paymentService = {
     logOfflinePayment,
     createPaymentIntent,
     getPaymentsForLease,
+    getLandlordPayments,
+    getMyPayments,
 };
 
 export default paymentService;
+
+// import api from '../../services/api.js';
+
+// const LANDLORD_API_URL = '/landlord/payments';
+// const TENANT_API_URL = '/tenant/payments';
+
+// // For landlords to log an offline payment
+// const logOfflinePayment = async (paymentData) => {
+//     try {
+//         const response = await api.post(`${LANDLORD_API_URL}/log-offline`, paymentData);
+//         return response.data;
+//     } catch (error) {
+//         throw error.response?.data?.message || 'Failed to log offline payment';
+//     }
+// };
+
+// // For landlords to get payment history for a lease
+// const getPaymentsForLease = async (leaseId) => {
+//     try {
+//         const response = await api.get(`${LANDLORD_API_URL}/lease/${leaseId}`);
+//         return response.data;
+//     } catch (error) {
+//         throw error.response?.data?.message || 'Failed to fetch payment history';
+//     }
+// };
+
+// // For tenants to initiate an online payment
+// const createPaymentIntent = async (paymentData) => {
+//     try {
+//         const response = await api.post(`${TENANT_API_URL}/create-payment-intent`, paymentData);
+//         return response.data;
+//     } catch (error) {
+//         throw error.response?.data?.message || 'Failed to create payment intent';
+//     }
+// };
+// const getLandlordPayments = async (queryParams) => {
+//   const response = await api.get(LANDLORD_API_URL, { params: queryParams });
+//   return response.data;
+// };
+
+// const paymentService = {
+//     logOfflinePayment,
+//     createPaymentIntent,
+//     getPaymentsForLease,
+//     getLandlordPayments,
+// };
+
+// export default paymentService;
+
+// import api from '../../services/api.js';
+
+// const LANDLORD_API_URL = '/landlord/payments';
+// const TENANT_API_URL = '/tenant/payments';
+
+// // For landlords to log an offline payment
+// const logOfflinePayment = async (paymentData) => {
+//     try {
+//         const response = await api.post(`${LANDLORD_API_URL}/log-offline`, paymentData);
+//         return response.data;
+//     } catch (error) {
+//         throw error.response?.data?.message || 'Failed to log offline payment';
+//     }
+// };
+
+// // For landlords to get payment history for a lease
+// const getPaymentsForLease = async (leaseId) => {
+//     try {
+//         const response = await api.get(`${LANDLORD_API_URL}/lease/${leaseId}`);
+//         return response.data;
+//     } catch (error) {
+//         throw error.response?.data?.message || 'Failed to fetch payment history';
+//     }
+// };
+
+// // For tenants to initiate an online payment
+// const createPaymentIntent = async (paymentData) => {
+//     try {
+//         const response = await api.post(`${TENANT_API_URL}/create-payment-intent`, paymentData);
+//         return response.data;
+//     } catch (error) {
+//         throw error.response?.data?.message || 'Failed to create payment intent';
+//     }
+// };
+// const getLandlordPayments = async (queryParams, token) => {
+//   const config = {
+//     headers: {
+//       Authorization: `Bearer ${token}`,
+//     },
+//     params: queryParams, // Axios will automatically format this into a query string
+//   };
+//   const response = await axios.get(API_URL, config);
+//   return response.data;
+// };
+
+// const paymentService = {
+//     logOfflinePayment,
+//     createPaymentIntent,
+//     getPaymentsForLease,
+//     getLandlordPayments,
+// };
+
+// export default paymentService;
 
 // import api from '../../services/api.js';
 

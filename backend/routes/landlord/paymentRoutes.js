@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
-const { logOfflinePayment, getPaymentsForLease } = require('../../controllers/landlord/paymentController');
+const { logOfflinePayment, getPaymentsForLease, getLandlordPayments } = require('../../controllers/landlord/paymentController');
 const { protect } = require('../../middleware/authMiddleware');
 const { isLandlord } = require('../../middleware/roleMiddleware');
 
@@ -42,8 +42,56 @@ const validateOfflinePayment = [
 // Routes
 router.post('/log-offline', validateOfflinePayment, logOfflinePayment);
 router.get('/lease/:leaseId', getPaymentsForLease);
+router.get('/', getLandlordPayments);
 
 module.exports = router;
+
+// const express = require('express');
+// const router = express.Router();
+// const { body } = require('express-validator');
+// const { logOfflinePayment, getPaymentsForLease } = require('../../controllers/landlord/paymentController');
+// const { protect } = require('../../middleware/authMiddleware');
+// const { isLandlord } = require('../../middleware/roleMiddleware');
+
+// // All routes here are for landlords only
+// router.use(protect, isLandlord);
+
+// // Validation rules for logging an offline payment
+// const validateOfflinePayment = [
+//     body('leaseId')
+//         .isMongoId()
+//         .withMessage('A valid lease ID is required'),
+//     body('amount')
+//         .isFloat({ gt: 0 })
+//         .withMessage('Amount must be a positive number')
+//         .toFloat(),
+//     body('paymentDate')
+//         .isISO8601()
+//         .withMessage('A valid payment date is required')
+//         .toDate()
+//         .custom((value) => {
+//             if (value > new Date()) {
+//                 throw new Error('Payment date cannot be in the future');
+//             }
+//             return true;
+//         }),
+//     body('method')
+//         .isIn(['Manual - Cash', 'Manual - Check', 'Manual - Other'])
+//         .withMessage('Invalid payment method'),
+//     body('notes')
+//         .optional()
+//         .isString()
+//         .trim()
+//         .escape()
+//         .isLength({ max: 500 })
+//         .withMessage('Notes must not exceed 500 characters')
+// ];
+
+// // Routes
+// router.post('/log-offline', validateOfflinePayment, logOfflinePayment);
+// router.get('/lease/:leaseId', getPaymentsForLease);
+
+// module.exports = router;
 
 // const express = require('express');
 // const router = express.Router();

@@ -17,6 +17,11 @@ const getTenantById = async (tenantId) => {
     return response.data;
 };
 
+const getTenantReliabilityScore = async (tenantId) => {
+    const response = await api.get(`/landlord/tenants/${tenantId}/reliability-score`);
+    return response.data;
+};
+
 const getUpcomingPayments = async () => {
     const response = await api.get(`${LANDLORD_API_URL}/upcoming`);
     return response.data;
@@ -27,6 +32,7 @@ const tenantService = {
     getTenants,
     getTenantById,
     getUpcomingPayments,
+    getTenantReliabilityScore,
 };
 
 export default tenantService;

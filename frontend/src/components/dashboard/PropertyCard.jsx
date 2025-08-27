@@ -6,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import PropTypes from "prop-types";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -215,6 +216,29 @@ const PropertyCard = ({
       </div>
     </Card>
   );
+};
+PropertyCard.propTypes = {
+  property: PropTypes.shape({
+    _id: PropTypes.string.isRequired,
+    address: PropTypes.shape({
+      street: PropTypes.string,
+      city: PropTypes.string,
+      state: PropTypes.string,
+    }).isRequired,
+    imageUrl: PropTypes.string,
+    status: PropTypes.string,
+    propertyType: PropTypes.string,
+    bedrooms: PropTypes.number,
+    bathrooms: PropTypes.number,
+    rentAmount: PropTypes.number.isRequired,
+    activeLeaseId: PropTypes.string,
+  }).isRequired,
+  context: PropTypes.oneOf(["public", "landlord"]),
+  onClick: PropTypes.func,
+  onEdit: PropTypes.func,
+  onDelete: PropTypes.func,
+  onAssignLease: PropTypes.func,
+  onViewPayments: PropTypes.func,
 };
 
 export default PropertyCard;

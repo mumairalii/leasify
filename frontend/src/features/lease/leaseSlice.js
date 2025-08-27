@@ -18,6 +18,15 @@ export const getMyLease = createAsyncThunk('lease/getMyLease', async (_, thunkAP
     }
 });
 
+export const getLeaseDetails = createAsyncThunk('lease/getLeaseDetails', async (_, thunkAPI) => {
+    try {
+        return await leaseService.getLeaseDetails();
+    } catch (error) {
+        const message = (error.response?.data?.message) || error.message || error.toString();
+        return thunkAPI.rejectWithValue(message);
+    }
+});
+
 export const assignLease = createAsyncThunk('lease/assign', async (leaseData, thunkAPI) => {
     try {
         return await leaseService.assignLease(leaseData);
@@ -47,6 +56,14 @@ export const leaseSlice = createSlice({
             .addCase(assignLease.fulfilled, (state) => { state.isLoading = false; })
             .addCase(assignLease.rejected, (state, action) => {
                 state.isLoading = false; state.isError = true; state.message = action.payload;
+            })
+            .addCase(getLeaseDetails.pending, (state) => { state.isLoading = true; })
+            .addCase(getLeaseDetails.fulfilled, (state, action) => {
+                state.isLoading = false;
+                state.lease = action.payload;
+            })
+            .addCase(getLeaseDetails.rejected, (state, action) => {
+                state.isLoading = false; state.isError = true; state.message = action.payload; state.lease = null;
             });
     },
 });

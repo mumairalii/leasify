@@ -6,6 +6,11 @@ const initialState = {
     isLoading: false,
     isError: false,
     message: '',
+    landlordPayments: [],
+  landlordPaymentsMeta: null,
+  isLandlordPaymentsLoading: false,
+  isLandlordPaymentsError: false,
+  landlordPaymentsMessage: '',
 };
 
 const getErrorMessage = (error) => {
@@ -39,6 +44,19 @@ export const getMyPayments = createAsyncThunk('payments/getMyPayments', async (_
     }
 });
 
+// --- NEW ASYNC THUNK ---
+export const getLandlordPayments = createAsyncThunk(
+  'payments/getLandlordAll',
+  async (queryParams, thunkAPI) => {
+    try {
+      return await paymentService.getLandlordPayments(queryParams);
+    } catch (error) {
+      const message = (error.response?.data?.message) || error.message || error.toString();
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
 export const paymentSlice = createSlice({
     name: 'payments',
     initialState,
@@ -48,6 +66,9 @@ export const paymentSlice = createSlice({
             state.isLoading = false;
             state.isError = false;
             state.message = '';
+            state.isLandlordPaymentsLoading = false;
+      state.isLandlordPaymentsError = false;
+      state.landlordPaymentsMessage = '';
         }
     },
     extraReducers: (builder) => {
@@ -72,12 +93,267 @@ export const paymentSlice = createSlice({
             })
             .addCase(getMyPayments.rejected, (state, action) => {
                 state.isLoading = false; state.isError = true; state.message = action.payload;
-            });
+            })
+             .addCase(getLandlordPayments.pending, (state) => {
+        state.isLandlordPaymentsLoading = true;
+      })
+      .addCase(getLandlordPayments.fulfilled, (state, action) => {
+        state.isLandlordPaymentsLoading = false;
+        state.landlordPayments = action.payload.payments;
+        state.landlordPaymentsMeta = {
+          page: action.payload.page,
+          pages: action.payload.pages,
+          total: action.payload.total,
+        };
+      })
+      .addCase(getLandlordPayments.rejected, (state, action) => {
+        state.isLandlordPaymentsLoading = false;
+        state.isLandlordPaymentsError = true;
+        state.landlordPaymentsMessage = action.payload;
+      });
     },
 });
 
 export const { reset } = paymentSlice.actions;
 export default paymentSlice.reducer;
+// import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+// import paymentService from './paymentService.js';
+
+// const initialState = {
+//     paymentHistory: [],
+//     isLoading: false,
+//     isError: false,
+//     message: '',
+//     landlordPayments: [],
+//   landlordPaymentsMeta: null,
+//   isLandlordPaymentsLoading: false,
+//   isLandlordPaymentsError: false,
+//   landlordPaymentsMessage: '',
+// };
+
+// const getErrorMessage = (error) => {
+//     return (error.response?.data?.message) || error.message || error.toString();
+// };
+
+// // --- Async Thunks (Simplified) ---
+// // The thunks no longer get the token from the state. They just call the service.
+
+// export const logOfflinePayment = createAsyncThunk('payments/logOffline', async (paymentData, thunkAPI) => {
+//     try {
+//         return await paymentService.logOfflinePayment(paymentData);
+//     } catch (error) {
+//         return thunkAPI.rejectWithValue(getErrorMessage(error));
+//     }
+// });
+
+// export const getPaymentsForLease = createAsyncThunk('payments/getForLease', async (leaseId, thunkAPI) => {
+//     try {
+//         return await paymentService.getPaymentsForLease(leaseId);
+//     } catch (error) {
+//         return thunkAPI.rejectWithValue(getErrorMessage(error));
+//     }
+// });
+
+// export const getMyPayments = createAsyncThunk('payments/getMyPayments', async (_, thunkAPI) => {
+//     try {
+//         return await paymentService.getMyPayments();
+//     } catch (error) {
+//         return thunkAPI.rejectWithValue(getErrorMessage(error));
+//     }
+// });
+
+// // --- NEW ASYNC THUNK ---
+// export const getLandlordPayments = createAsyncThunk(
+//   'payments/getLandlordAll',
+//   async (queryParams, thunkAPI) => {
+//     try {
+//       return await paymentService.getLandlordPayments(queryParams);
+//     } catch (error) {
+//       const message = (error.response?.data?.message) || error.message || error.toString();
+//       return thunkAPI.rejectWithValue(message);
+//     }
+//   }
+// );
+
+// export const paymentSlice = createSlice({
+//     name: 'payments',
+//     initialState,
+//     reducers: {
+//         reset: (state) => {
+//             state.paymentHistory = [];
+//             state.isLoading = false;
+//             state.isError = false;
+//             state.message = '';
+//             state.isLandlordPaymentsLoading = false;
+//       state.isLandlordPaymentsError = false;
+//       state.landlordPaymentsMessage = '';
+//         }
+//     },
+//     extraReducers: (builder) => {
+//         builder
+//             .addCase(logOfflinePayment.pending, (state) => { state.isLoading = true; })
+//             .addCase(logOfflinePayment.fulfilled, (state) => { state.isLoading = false; })
+//             .addCase(logOfflinePayment.rejected, (state, action) => {
+//                 state.isLoading = false; state.isError = true; state.message = action.payload;
+//             })
+//             .addCase(getPaymentsForLease.pending, (state) => { state.isLoading = true; })
+//             .addCase(getPaymentsForLease.fulfilled, (state, action) => {
+//                 state.isLoading = false;
+//                 state.paymentHistory = action.payload;
+//             })
+//             .addCase(getPaymentsForLease.rejected, (state, action) => {
+//                 state.isLoading = false; state.isError = true; state.message = action.payload;
+//             })
+//             .addCase(getMyPayments.pending, (state) => { state.isLoading = true; })
+//             .addCase(getMyPayments.fulfilled, (state, action) => {
+//                 state.isLoading = false;
+//                 state.paymentHistory = action.payload;
+//             })
+//             .addCase(getMyPayments.rejected, (state, action) => {
+//                 state.isLoading = false; state.isError = true; state.message = action.payload;
+//             })
+//              .addCase(getLandlordPayments.pending, (state) => {
+//         state.isLandlordPaymentsLoading = true;
+//       })
+//       .addCase(getLandlordPayments.fulfilled, (state, action) => {
+//         state.isLandlordPaymentsLoading = false;
+//         state.landlordPayments = action.payload.payments;
+//         state.landlordPaymentsMeta = {
+//           page: action.payload.page,
+//           pages: action.payload.pages,
+//           total: action.payload.total,
+//         };
+//       })
+//       .addCase(getLandlordPayments.rejected, (state, action) => {
+//         state.isLandlordPaymentsLoading = false;
+//         state.isLandlordPaymentsError = true;
+//         state.landlordPaymentsMessage = action.payload;
+//       });
+//     },
+// });
+
+// export const { reset } = paymentSlice.actions;
+// export default paymentSlice.reducer;
+
+// import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+// import paymentService from './paymentService.js';
+
+// const initialState = {
+//     paymentHistory: [],
+//     isLoading: false,
+//     isError: false,
+//     message: '',
+//     landlordPayments: [],
+//   landlordPaymentsMeta: null,
+//   isLandlordPaymentsLoading: false,
+//   isLandlordPaymentsError: false,
+//   landlordPaymentsMessage: '',
+// };
+
+// const getErrorMessage = (error) => {
+//     return (error.response?.data?.message) || error.message || error.toString();
+// };
+
+// // --- Async Thunks (Simplified) ---
+// // The thunks no longer get the token from the state. They just call the service.
+
+// export const logOfflinePayment = createAsyncThunk('payments/logOffline', async (paymentData, thunkAPI) => {
+//     try {
+//         return await paymentService.logOfflinePayment(paymentData);
+//     } catch (error) {
+//         return thunkAPI.rejectWithValue(getErrorMessage(error));
+//     }
+// });
+
+// export const getPaymentsForLease = createAsyncThunk('payments/getForLease', async (leaseId, thunkAPI) => {
+//     try {
+//         return await paymentService.getPaymentsForLease(leaseId);
+//     } catch (error) {
+//         return thunkAPI.rejectWithValue(getErrorMessage(error));
+//     }
+// });
+
+// export const getMyPayments = createAsyncThunk('payments/getMyPayments', async (_, thunkAPI) => {
+//     try {
+//         return await paymentService.getMyPayments();
+//     } catch (error) {
+//         return thunkAPI.rejectWithValue(getErrorMessage(error));
+//     }
+// });
+
+// // --- NEW ASYNC THUNK ---
+// export const getLandlordPayments = createAsyncThunk(
+//   'payments/getLandlordAll',
+//   async (queryParams, thunkAPI) => {
+//     try {
+//       const token = thunkAPI.getState().auth.user.token;
+//       return await paymentService.getLandlordPayments(queryParams, token);
+//     } catch (error) {
+//       const message = (error.response?.data?.message) || error.message || error.toString();
+//       return thunkAPI.rejectWithValue(message);
+//     }
+//   }
+// );
+
+// export const paymentSlice = createSlice({
+//     name: 'payments',
+//     initialState,
+//     reducers: {
+//         reset: (state) => {
+//             state.paymentHistory = [];
+//             state.isLoading = false;
+//             state.isError = false;
+//             state.message = '';
+//             state.isLandlordPaymentsLoading = false;
+//       state.isLandlordPaymentsError = false;
+//       state.landlordPaymentsMessage = '';
+//         }
+//     },
+//     extraReducers: (builder) => {
+//         builder
+//             .addCase(logOfflinePayment.pending, (state) => { state.isLoading = true; })
+//             .addCase(logOfflinePayment.fulfilled, (state) => { state.isLoading = false; })
+//             .addCase(logOfflinePayment.rejected, (state, action) => {
+//                 state.isLoading = false; state.isError = true; state.message = action.payload;
+//             })
+//             .addCase(getPaymentsForLease.pending, (state) => { state.isLoading = true; })
+//             .addCase(getPaymentsForLease.fulfilled, (state, action) => {
+//                 state.isLoading = false;
+//                 state.paymentHistory = action.payload;
+//             })
+//             .addCase(getPaymentsForLease.rejected, (state, action) => {
+//                 state.isLoading = false; state.isError = true; state.message = action.payload;
+//             })
+//             .addCase(getMyPayments.pending, (state) => { state.isLoading = true; })
+//             .addCase(getMyPayments.fulfilled, (state, action) => {
+//                 state.isLoading = false;
+//                 state.paymentHistory = action.payload;
+//             })
+//             .addCase(getMyPayments.rejected, (state, action) => {
+//                 state.isLoading = false; state.isError = true; state.message = action.payload;
+//             })
+//              .addCase(getLandlordPayments.pending, (state) => {
+//         state.isLandlordPaymentsLoading = true;
+//       })
+//       .addCase(getLandlordPayments.fulfilled, (state, action) => {
+//         state.isLandlordPaymentsLoading = false;
+//         state.landlordPayments = action.payload.payments;
+//         state.landlordPaymentsMeta = {
+//           page: action.payload.page,
+//           pages: action.payload.pages,
+//           total: action.payload.total,
+//         };
+//       })
+//       .addCase(getLandlordPayments.rejected, (state, action) => {
+//         state.isLandlordPaymentsLoading = false;
+//         state.isLandlordPaymentsError = true;
+//         state.landlordPaymentsMessage = action.payload;
+//       });
+//     },
+// });
+
+// export const { reset } = paymentSlice.actions;
+// export default paymentSlice.reducer;
 
 // import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 // import paymentService from './paymentService';

@@ -28,6 +28,7 @@ import LandlordApplicationsPage from "./pages/LandLordAplicationsPage";
 import AddPropertyPage from "./pages/AddPropertyPage";
 import CommunicationLogPage from "./pages/CommunicationLogPage";
 import EditPropertyPage from "./pages/EditPropertyPage";
+// import LandlordPaymentsPage from "./pages/LandlordPaymentsPage";
 import LandlordPaymentsPage from "./pages/LandlordPaymentsPage";
 import PaymentHistoryPage from "./pages/PaymentHistoryPage"; // <-- Import the new page
 import LeasePage from "./pages/LeasePage";

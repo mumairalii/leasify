@@ -55,7 +55,7 @@ const columns = [
   },
 ];
 
-function LandlordPaymentsPage() {
+function LandLordPaymentsPage() {
   const dispatch = useDispatch();
   const { properties: allProperties } = useSelector(
     (state) => state.properties
@@ -140,4 +140,4 @@ function LandlordPaymentsPage() {
   );
 }
 
-export default LandlordPaymentsPage;
+export default LandLordPaymentsPage;
